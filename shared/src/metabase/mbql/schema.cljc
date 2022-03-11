@@ -443,9 +443,14 @@
   "Set of valid arithmetic expression clause keywords."
   #{:+ :- :/ :* :coalesce :length :round :ceil :floor :abs :power :sqrt :log :exp :case})
 
+(def boolean-expressions
+  "Set of valid boolean expression clause keywords."
+  #{:and :or :not :< :<= :> :>= := :!=})
+
 (def ^:private aggregations #{:sum :avg :stddev :var :median :percentile :min :max :cum-count :cum-sum :count-where :sum-where :share :distinct :metric :aggregation-options :count})
 
 (declare ArithmeticExpression)
+(declare BooleanExpression)
 (declare Aggregation)
 
 (def ^:private NumericExpressionArg
@@ -469,6 +474,12 @@
   (s/conditional
    number?
    s/Num
+
+   boolean?
+   s/Bool
+
+   (partial is-clause? boolean-expressions)
+   (s/recursive #'BooleanExpression)
 
    (partial is-clause? arithmetic-expressions)
    (s/recursive #'ArithmeticExpression)
@@ -699,10 +710,20 @@
 ;; segments and pass-thru to GA.
 (defclause ^:sugar segment, segment-id (s/cond-pre helpers/IntGreaterThanZero helpers/NonBlankString))
 
+(declare BooleanExpression*)
+
+(def ^:private BooleanExpression
+  "Schema for the definition of an arithmetic expression."
+  (s/recursive #'BooleanExpression*))
+
+(def ^:private BooleanExpression*
+  (one-of and or not < <= > >= = !=))
+
 (def ^:private Filter*
   (s/conditional
    (partial is-clause? arithmetic-expressions) ArithmeticExpression
    (partial is-clause? string-expressions)     StringExpression
+   (partial is-clause? boolean-expressions)    BooleanExpression
    :else
    (one-of
     ;; filters drivers must implement
@@ -737,6 +758,7 @@
   (s/conditional
    (partial is-clause? arithmetic-expressions) ArithmeticExpression
    (partial is-clause? string-expressions)     StringExpression
+   (partial is-clause? boolean-expressions)    BooleanExpression
    (partial is-clause? :case)                  case
    :else                                       Field))
 
@@ -1607,3 +1629,25 @@
   "Compiled schema validator for an [outer] Metabase query. (Pre-compling a validator is more efficient; use this
   instead of calling `(s/validate Query query)` or similar."
   (s/validator Query))
+
+(comment
+  (validate-query {:type :query,
+                   :query {:source-table 3, :expressions {"Bool" [:> [:field 1 nil] 10]}},
+                   :database 1,
+                   :middleware {:js-int-to-string? true, :add-default-userland-constraints? true},
+                   :info
+                   {:executed-by 1,
+                    :context :ad-hoc}})
+  (validate-query {:type :query,
+                   :query {:source-table 3, :expressions {"Bool" [:= "x" "y"]}},
+                   :database 1,
+                   :middleware {:js-int-to-string? true, :add-default-userland-constraints? true},
+                   :info
+                   {:executed-by 1,
+                    :context :ad-hoc,
+
+                    :constraints {:max-results 10000, :max-results-bare-rows 2000}}})
+
+  (s/validate case [:case [[[:> [:field 17 nil] 10] false]] {:default true}])
+  (s/validate FieldOrExpressionDef [:= true false])
+  )
