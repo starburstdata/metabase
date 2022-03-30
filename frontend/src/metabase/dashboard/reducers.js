@@ -34,6 +34,9 @@ import {
   SAVE_DASHBOARD_AND_CARDS,
   SET_DASHBOARD_SEEN,
   SET_SHOW_LOADING_COMPLETE_FAVICON,
+  SET_SEND_WEB_NOTIFICATION,
+  SET_SHOW_WEB_NOTIFICATION_TOAST,
+  SET_RENDER_WEB_NOTIFICATION_TOAST,
 } from "./actions";
 
 import { isVirtualDashCard, syncParametersAndEmbeddingParams } from "./utils";
@@ -78,6 +81,32 @@ const showLoadingCompleteFavicon = handleActions(
     },
   },
   false,
+);
+
+const webNotificationLoadingComplete = handleActions(
+  {
+    [INITIALIZE]: { next: state => {} },
+    [FETCH_DASHBOARD]: { next: state => {} },
+    [SET_SEND_WEB_NOTIFICATION]: {
+      next: (state, { payload }) => ({
+        ...state,
+        sendNotification: payload,
+      }),
+    },
+    [SET_SHOW_WEB_NOTIFICATION_TOAST]: {
+      next: (state, { payload }) => ({
+        ...state,
+        showToast: payload,
+      }),
+    },
+    [SET_RENDER_WEB_NOTIFICATION_TOAST]: {
+      next: (state, { payload }) => ({
+        ...state,
+        renderToast: payload,
+      }),
+    },
+  },
+  {},
 );
 
 function newDashboard(before, after, isDirty) {
@@ -386,6 +415,7 @@ export default combineReducers({
   isEditing,
   hasSeenLoadedDashboard,
   showLoadingCompleteFavicon,
+  webNotificationLoadingComplete,
   dashboards,
   dashcards,
   dashcardData,

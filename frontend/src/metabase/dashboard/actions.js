@@ -57,6 +57,7 @@ import {
   getDashboardComplete,
   getParameterValues,
   getDashboardParameterValuesSearchCache,
+  getSendWebNotification,
 } from "./selectors";
 import { getMetadata } from "metabase/selectors/metadata";
 import { getCardAfterVisualizationClick } from "metabase/visualizations/lib/utils";
@@ -142,6 +143,13 @@ export const SET_DASHBOARD_SEEN = "metabase/dashboard/SET_SEEN";
 export const SET_SHOW_LOADING_COMPLETE_FAVICON =
   "metabase/dashboard/SET_SHOW_LOADING_COMPLETE_FAVICON";
 
+export const SET_SEND_WEB_NOTIFICATION =
+  "metabase/dashboard/SET_SEND_WEB_NOTIFICATION";
+export const SET_SHOW_WEB_NOTIFICATION_TOAST =
+  "metabase/dashboard/SET_SHOW_WEB_NOTIFICATION_TOAST";
+export const SET_RENDER_WEB_NOTIFICATION_TOAST =
+  "metabase/dashboard/SET_RENDER_WEB_NOTIFICATION_TOAST";
+
 export const initialize = createAction(INITIALIZE);
 export const setEditingDashboard = createAction(SET_EDITING_DASHBOARD);
 
@@ -152,6 +160,34 @@ export const setHasSeenLoadedDashboard = createAction(SET_DASHBOARD_SEEN);
 export const setShowLoadingCompleteFavicon = createAction(
   SET_SHOW_LOADING_COMPLETE_FAVICON,
 );
+
+export const setSendWebNotification = createAction(SET_SEND_WEB_NOTIFICATION);
+export const setShowWebNotificationToast = createAction(
+  SET_SHOW_WEB_NOTIFICATION_TOAST,
+);
+export const setRenderWebNotificationToast = createAction(
+  SET_RENDER_WEB_NOTIFICATION_TOAST,
+);
+
+export const dismissWebNotificationToast = () => dispatch => {
+  dispatch(setShowWebNotificationToast(false));
+  setTimeout(() => {
+    dispatch(setRenderWebNotificationToast(false));
+  }, 300);
+};
+
+export const showWebNotificationToast = () => dispatch => {
+  dispatch(setRenderWebNotificationToast(true));
+  dispatch(setShowWebNotificationToast(true));
+};
+
+export const confirmWebNotification = () => async dispatch => {
+  const permission = await Notification.requestPermission();
+  if (permission === "granted") {
+    dispatch(dismissWebNotificationToast());
+    dispatch(setSendWebNotification(true));
+  }
+};
 
 export const setSharing = isSharing => dispatch => {
   if (isSharing) {
@@ -462,7 +498,16 @@ export const fetchDashboardCardData = createThunkAction(
       })
       .filter(p => !!p);
 
+    const notificationTimeoutId = setTimeout(() => {
+      dispatch(setRenderWebNotificationToast(true));
+      dispatch(setShowWebNotificationToast(true));
+    }, 10000);
+
     Promise.all(promises).then(() => {
+      clearTimeout(notificationTimeoutId);
+
+      dispatch(dismissWebNotificationToast());
+
       dispatch(setShowLoadingCompleteFavicon(true));
       if (!document.hidden) {
         dispatch(setHasSeenLoadedDashboard());
@@ -480,6 +525,15 @@ export const fetchDashboardCardData = createThunkAction(
           },
           { once: true },
         );
+
+        const sendNotification = getSendWebNotification(getState());
+
+        if (sendNotification) {
+          new Notification(`All Set! ${dashboard.name} is ready.`, {
+            body: "All questions loaded",
+            icon: "app/assets/img/favicon-32x32.png",
+          });
+        }
       }
     });
   },
