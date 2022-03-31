@@ -9,6 +9,7 @@ import {
   formatDateTimeWithUnit,
   formatTimeWithUnit,
   slugify,
+  getCurrencySymbol,
 } from "metabase/lib/formatting";
 import ExternalLink from "metabase/core/components/ExternalLink";
 import { TYPE } from "metabase/lib/types";
@@ -580,6 +581,28 @@ describe("formatting", () => {
 
     it("should slugify diacritics", () => {
       expect(slugify("än umlaut")).toEqual("%C3%A4n_umlaut");
+    });
+  });
+
+  describe("getCurrencySymbol", () => {
+    const currencySymbols = [
+      ["USD", "$"],
+      ["EUR", "€"],
+      ["GBP", "£"],
+      ["JPY", "¥"],
+      ["CNY", "CN¥"],
+      ["CAD", "CA$"],
+      ["AUD", "AU$"],
+      ["NZD", "NZ$"],
+      ["HKD", "HK$"],
+      ["BTC", "₿"],
+      ["OOPS", "OOPS"],
+    ];
+
+    currencySymbols.forEach(([currency, symbol]) => {
+      it(`should get a ${symbol} for ${currency}`, () => {
+        expect(getCurrencySymbol(currency)).toEqual(symbol);
+      });
     });
   });
 });
