@@ -1,5 +1,6 @@
 import { hasPremiumFeature } from "metabase-enterprise/settings";
 import { PLUGIN_FEATURE_LEVEL_PERMISSIONS } from "metabase/plugins";
+import { DATA_PERMISSIONS_TOOLBAR_CONTENT } from "metabase/admin/permissions/pages/DataPermissionsPage/DataPermissionsPage.jsx";
 import {
   canAccessSettings,
   canAccessDataModel,
@@ -16,4 +17,5 @@ if (hasPremiumFeature("advanced_permissions")) {
 
   PLUGIN_FEATURE_LEVEL_PERMISSIONS.getFeatureLevelDataPermissions = getFeatureLevelDataPermissions;
   PLUGIN_FEATURE_LEVEL_PERMISSIONS.dataColumns = DATA_COLUMNS;
+  DATA_PERMISSIONS_TOOLBAR_CONTENT.length = 0;
 }
