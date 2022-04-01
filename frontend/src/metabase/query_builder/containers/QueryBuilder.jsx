@@ -20,6 +20,7 @@ import { usePrevious } from "metabase/hooks/use-previous";
 
 import title from "metabase/hoc/Title";
 import titleWithLoadingTime from "metabase/hoc/TitleWithLoadingTime";
+import favicon from "metabase/hoc/Favicon";
 
 import View from "../components/view/View";
 
@@ -70,6 +71,8 @@ import {
   getFilteredTimelines,
   getTimeseriesXDomain,
   getIsAnySidebarOpen,
+  getDocumentTitle,
+  getPageFavicon,
 } from "../selectors";
 import * as actions from "../actions";
 
@@ -166,6 +169,8 @@ const mapStateToProps = (state, props) => {
     nativeEditorSelectedText: getNativeEditorSelectedText(state),
     modalSnippet: getModalSnippet(state),
     snippetCollectionId: getSnippetCollectionId(state),
+    documentTitle: getDocumentTitle(state),
+    pageFavicon: getPageFavicon(state),
   };
 };
 
@@ -364,6 +369,10 @@ export default _.compose(
   Bookmark.loadList(),
   Timelines.loadList(timelineProps),
   connect(mapStateToProps, mapDispatchToProps),
-  title(({ card }) => card?.name ?? t`Question`),
+  favicon(({ pageFavicon }) => pageFavicon),
+  title(({ card, documentTitle }) => ({
+    title: documentTitle || card?.name || t`Question`,
+    titleIndex: 1,
+  })),
   titleWithLoadingTime("queryStartTime"),
 )(QueryBuilder);
