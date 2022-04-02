@@ -41,26 +41,30 @@ function AppBar({
 }: Props) {
   const [isSearchActive, setSearchActive] = useState(false);
 
-  const closeSidebarForSmallScreens = useCallback(() => {
+  const onLogoClick = useCallback(() => {
     if (isSmallScreen()) {
       handleCloseSidebar();
-      setSearchActive(true);
     }
   }, [handleCloseSidebar]);
 
-  const onStopSearching = useCallback(() => {
-    setSearchActive(false);
+  const onSearchActive = useCallback(() => {
+    if (isSmallScreen()) {
+      setSearchActive(true);
+      handleCloseSidebar();
+    }
+  }, [handleCloseSidebar]);
+
+  const onSearchInactive = useCallback(() => {
+    if (isSmallScreen()) {
+      setSearchActive(false);
+    }
   }, []);
 
   return (
     <AppBarRoot>
       <RowLeft>
         <LogoIconWrapper>
-          <Link
-            to="/"
-            onClick={closeSidebarForSmallScreens}
-            data-metabase-event="Navbar;Logo"
-          >
+          <Link to="/" onClick={onLogoClick} data-metabase-event="Navbar;Logo">
             <LogoIcon size={24} />
           </Link>
         </LogoIconWrapper>
@@ -79,8 +83,8 @@ function AppBar({
             <SearchBar
               location={location}
               onChangeLocation={onChangeLocation}
-              onFocus={closeSidebarForSmallScreens}
-              onBlur={onStopSearching}
+              onSearchActive={onSearchActive}
+              onSearchInactive={onSearchInactive}
             />
           </SearchBarContent>
         </SearchBarContainer>
