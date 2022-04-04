@@ -478,8 +478,8 @@
 (s/defn native-feature-perms-path :- Path
   "Returns the native permissions path to use for a given feature-level permission type (e.g. download) and value
   (e.g. full or limited)."
-  [perm-type perm-value db-id]
-  (base->feature-perms-path perm-type perm-value (adhoc-native-query-path db-id)))
+  [perm-type perm-value database-or-id]
+  (base->feature-perms-path perm-type perm-value (adhoc-native-query-path database-or-id)))
 
 (s/defn general-perms-path :- Path
   "Returns the permissions path for *full* access a general permission."
@@ -539,7 +539,12 @@
   (every? (partial set-has-partial-permissions? permissions-set)
           paths-set))
 
-(s/defn perms-objects-set-for-parent-collection
+(s/defn set-has-general-permission-of-type? :- s/Bool
+  "Does `permissions-set` grant *full* access to a general permission of type `perm-type`?"
+  [permissions-set perm-type]
+  (set-has-full-permissions? permissions-set (general-perms-path perm-type)))
+
+(s/defn perms-objects-set-for-parent-collection :- #{Path}
   "Implementation of `IModel` `perms-objects-set` for models with a `collection_id`, such as Card, Dashboard, or Pulse.
   This simply returns the `perms-objects-set` of the parent Collection (based on `collection_id`) or for the Root
   Collection if `collection_id` is `nil`."
@@ -966,7 +971,7 @@
   [group-id :- su/IntGreaterThanZero db-id :- su/IntGreaterThanZero]
   (let [permissions-set (download-permissions-set group-id)
         table-ids-and-schemas (db/select-id->field :schema 'Table :db_id db-id :active [:= true])
-        native-perm-level (reduce (fn [highest-seen-perm-level [table-id table-schema]]
+        native-perm-level (reduce (fn [lowest-seen-perm-level [table-id table-schema]]
                                     (let [table-perm-level (download-permissions-level permissions-set
                                                                                        db-id
                                                                                        table-schema
@@ -975,7 +980,7 @@
                                         (= table-perm-level :none)
                                         (reduced :none)
 
-                                        (or (= highest-seen-perm-level :limited)
+                                        (or (= lowest-seen-perm-level :limited)
                                             (= table-perm-level :limited))
                                         :limited
 
