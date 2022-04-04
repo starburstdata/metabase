@@ -280,6 +280,7 @@
     "modules/drivers/sparksql/test"
     "modules/drivers/sqlite/test"
     "modules/drivers/sqlserver/test"
+    "modules/drivers/trino/test"
     "modules/drivers/vertica/test"]}
 
 ;;; Linters

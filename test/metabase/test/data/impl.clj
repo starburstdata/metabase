@@ -96,6 +96,7 @@
     (u/with-timeout create-database-timeout-ms
       (test.tz/with-system-timezone-id "UTC"
         (tx/create-db! driver database-definition)))
+    
     ;; Add DB object to Metabase DB
     (let [connection-details (tx/dbdef->connection-details driver :db database-definition)
           db                 (db/insert! Database

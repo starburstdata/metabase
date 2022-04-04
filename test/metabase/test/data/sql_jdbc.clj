@@ -18,8 +18,10 @@
 
 (defmethod tx/create-db! :sql-jdbc/test-extensions
   [& args]
-  (apply load-data/create-db! args))
+  (apply load-data/create-db! args)
+  (println "created-db"))
 
 (defmethod tx/destroy-db! :sql-jdbc/test-extensions
   [driver dbdef]
-  (load-data/destroy-db! driver dbdef))
+  (load-data/destroy-db! driver dbdef)
+  (println "destroy-db"))

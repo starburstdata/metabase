@@ -383,7 +383,7 @@
       ^{:name (format "(.getObject rs %d)" i)} (fn []
                                                  (.getObject rs i)))))
 
-(defn- get-object-of-class-thunk [^ResultSet rs, ^long i, ^Class klass]
+(defn get-object-of-class-thunk [^ResultSet rs, ^long i, ^Class klass]
   ^{:name (format "(.getObject rs %d %s)" i (.getCanonicalName klass))}
   (fn []
     (.getObject rs i klass)))
@@ -404,9 +404,16 @@
   [_ rs _ i]
   (get-object-of-class-thunk rs i java.time.LocalTime))
 
-(defmethod read-column-thunk [:sql-jdbc Types/TIME_WITH_TIMEZONE]
+(defmethod read-column-thunk [:trino Types/TIME_WITH_TIMEZONE]
   [_ rs _ i]
-  (get-object-of-class-thunk rs i java.time.OffsetTime))
+  (fn []
+    (let [t (.getObject rs i java.sql.Time)
+          local-time (t/local-time (.toString t))
+          ;; zone (t/zone-id)
+          ;; zone-rules (.getRules zone)
+          zone-offset (t/zone-offset)
+          zoned-local-time ((t/offset-time local-time zone-offset))]
+      zoned-local-time)))
 
 (defn- column-range [^ResultSetMetaData rsmeta]
   (range 1 (inc (.getColumnCount rsmeta))))

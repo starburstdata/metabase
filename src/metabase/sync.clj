@@ -38,7 +38,7 @@
   {:style/indent 1}
   ([database]
    (sync-database! database nil))
-
+        
   ([database                         :- i/DatabaseInstance
     {:keys [scan], :or {scan :full}} :- (s/maybe {(s/optional-key :scan) (s/maybe (s/enum :schema :full))})]
    (sync-util/sync-operation :sync database (format "Sync %s" (sync-util/name-for-logging database))

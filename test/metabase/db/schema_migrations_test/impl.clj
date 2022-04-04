@@ -41,6 +41,7 @@
                :table-definitions []}]
     (try
       (tx/create-db! driver dbdef)
+      (println "created-db impl")
       (let [connection-details (tx/dbdef->connection-details driver :db dbdef)
             jdbc-spec          (sql-jdbc.conn/connection-details->spec driver connection-details)]
         (f (mdb.test-util/->ClojureJDBCSpecDataSource jdbc-spec)))

@@ -9,7 +9,7 @@ ARG MB_EDITION=oss
 WORKDIR /home/circleci
 
 COPY --chown=circleci . .
-RUN INTERACTIVE=false CI=true MB_EDITION=$MB_EDITION bin/build
+RUN INTERACTIVE=false CI=false MB_EDITION=$MB_EDITION bin/build
 
 # ###################
 # # STAGE 2: runner
