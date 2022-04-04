@@ -151,6 +151,93 @@ describe("scenarios > question > settings", () => {
       }
     });
 
+    // https://github.com/metabase/metabase/pull/21338#pullrequestreview-928807257
+    it("should allow columns ordering after column removal and addition via sidebar (metabase#13455)", () => {
+      cy.viewport(2000, 1200);
+      // Orders join Products
+      visitQuestionAdhoc({
+        dataset_query: {
+          type: "query",
+          query: {
+            "source-table": ORDERS_ID,
+            joins: [
+              {
+                fields: "all",
+                "source-table": PRODUCTS_ID,
+                condition: [
+                  "=",
+                  ["field-id", ORDERS.PRODUCT_ID],
+                  ["joined-field", "Products", ["field-id", PRODUCTS.ID]],
+                ],
+                alias: "Products",
+              },
+            ],
+          },
+          database: SAMPLE_DB_ID,
+        },
+        display: "table",
+      });
+
+      cy.findByText("Settings").click();
+      cy.findByTextEnsureVisible("Click and drag to change their order")
+        .parent()
+        .find(".cursor-grab")
+        .as("sidebarColumns"); // Store all columns in an array
+
+      // Remove "Total"
+      cy.get("@sidebarColumns")
+        .contains("Total")
+        .closest(".cursor-grab")
+        .find(".Icon-close")
+        .click();
+      reloadResults();
+      cy.findByText("117.03").should("not.exist");
+      // This click doesn't do anything, but simply allows the array to be updated (test gives false positive without this step)
+      cy.findByText("Visible columns").click();
+      cy.findByText("Address")
+        .siblings(".Icon-add")
+        .click();
+
+      // The result automatically load when adding new fields
+      cy.findByText(/Doing science/).should("not.exist");
+
+      // Refresh @sidebarColumns as we added a new field
+      cy.findByText("Click and drag to change their order")
+        .parent()
+        .find(".cursor-grab")
+        .as("sidebarColumns"); // Store all columns in an array
+
+      findColumnAtIndex("User → Address", 16).as("user-address");
+
+      cy.get("@user-address")
+        .trigger("mousedown", 0, 0, { force: true })
+        .trigger("mousemove", 5, 5, { force: true })
+        .trigger("mousemove", 0, -50, { force: true })
+        .trigger("mouseup", 0, -50, { force: true });
+
+      findColumnAtIndex("User → Address", 15);
+      /**
+       * Helper functions related to THIS test only
+       */
+
+      function reloadResults() {
+        cy.icon("play")
+          .last()
+          .click();
+
+        // Prevent performing actions while the query is being executed.
+        // Which caused some race condition and failed the test.
+        cy.findByText(/Doing science/).should("not.exist");
+      }
+
+      function findColumnAtIndex(column_name, index) {
+        return cy
+          .get("@sidebarColumns")
+          .eq(index)
+          .contains(column_name);
+      }
+    });
+
     it("should change to column formatting when sidebar is already open (metabase#16043)", () => {
       visitQuestionAdhoc({
         dataset_query: {
