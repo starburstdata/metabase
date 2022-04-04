@@ -1,0 +1,160 @@
+; This is the Calva evaluation results output window.
+; TIPS: The keyboard shortcut `ctrl+alt+o o` shows and focuses this window
+;   when connected to a REPL session.
+; Please see https://calva.io/output/ for more info.
+; Happy coding! ♥️
+
+; Connecting ...
+; No nrepl port file found.
+; Bad url: localhost:
+; Jacking in...
+; Starting Jack-in Terminal: clojure -Sdeps '{:deps {nrepl/nrepl {:mvn/version,"0.9.0"},cider/cider-nrepl {:mvn/version,"0.27.4"}}}' -M:drivers -m nrepl.cmdline --middleware "[cider.nrepl/cider-middleware]"
+; Hooking up nREPL sessions...
+; Connected session: clj
+; TIPS: 
+;   - You can edit the contents here. Use it as a REPL if you like.
+;   - `alt+enter` evaluates the current top level form.
+;   - `ctrl+enter` evaluates the current form.
+;   - `alt+up` and `alt+down` traverse up and down the REPL command history
+;      when the cursor is after the last contents at the prompt
+;   - Clojure lines in stack traces are peekable and clickable.
+clj꞉user꞉>  ; Use `alt+enter` to evaluate
+; Jack-in done.
+clj꞉user꞉> 
+
+; Syntax error compiling at (enterprise/backend/src/metabase_enterprise/advanced_permissions/api/general.clj:32:1).
+; No such namespace: api
+clj꞉metabase-enterprise.advanced-permissions.api.general꞉> 
+; Syntax error compiling at (enterprise/backend/src/metabase_enterprise/advanced_permissions/api/general.clj:41:1).
+; No such namespace: api
+clj꞉metabase-enterprise.advanced-permissions.api.general꞉> 
+6
+clj꞉metabase-enterprise.advanced-permissions.api.routes꞉> 
+Warning: environ value /Users/andrewdibiasio/.jenv/versions/system for key :java-home has been overwritten with /Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home
+nil
+clj꞉metabase-enterprise.advanced-permissions.api.routes꞉> 
+; Syntax error compiling at (enterprise/backend/src/metabase_enterprise/advanced_permissions/api/routes.clj:7:36).
+; No such var: g-perm/routes
+clj꞉metabase-enterprise.advanced-permissions.api.routes꞉> 
+; Syntax error compiling at (enterprise/backend/src/metabase_enterprise/advanced_permissions/api/routes.clj:7:36).
+; No such var: g-perm/routes
+clj꞉metabase-enterprise.advanced-permissions.api.routes꞉> 
+; Syntax error compiling at (enterprise/backend/src/metabase_enterprise/advanced_permissions/api/routes.clj:0:0).
+; No such var: g-perm/routes
+clj꞉metabase-enterprise.advanced-permissions.api.routes꞉> 
+; Syntax error compiling at (enterprise/backend/src/metabase_enterprise/advanced_permissions/api/routes.clj:7:36).
+; No such var: g-perm/routes
+clj꞉metabase-enterprise.advanced-permissions.api.routes꞉> 
+nil
+clj꞉metabase-enterprise.advanced-permissions.api.routes꞉> 
+; Syntax error compiling at (enterprise/backend/src/metabase_enterprise/advanced_permissions/api/routes.clj:7:36).
+; No such var: g-perm/routes
+clj꞉metabase-enterprise.advanced-permissions.api.routes꞉> 
+; Syntax error compiling at (enterprise/backend/src/metabase_enterprise/api/routes.clj:14:1).
+; No such namespace: compojure
+clj꞉metabase-enterprise.api.routes꞉> 
+; Syntax error compiling at (enterprise/backend/src/metabase_enterprise/api/routes.clj:14:1).
+; No such namespace: compojure
+clj꞉metabase-enterprise.api.routes꞉> 
+; Execution error (FileNotFoundException) at metabase-enterprise.api.routes/eval51928$loading (REPL:1).
+; Could not locate metabase_enterprise/api/routes/common__init.class, metabase_enterprise/api/routes/common.clj or metabase_enterprise/api/routes/common.cljc on classpath. Please check that namespaces with dashes use underscores in the Clojure file name.
+clj꞉metabase-enterprise.api.routes꞉> 
+; Execution error (FileNotFoundException) at metabase-enterprise.api.routes/eval51936$loading (REPL:1).
+; Could not locate metabase_enterprise/api/routes/common__init.class, metabase_enterprise/api/routes/common.clj or metabase_enterprise/api/routes/common.cljc on classpath. Please check that namespaces with dashes use underscores in the Clojure file name.
+clj꞉metabase-enterprise.api.routes꞉> 
+nil
+clj꞉metabase.driver.presto-jdbc꞉> 
+nil
+clj꞉metabase.driver.presto-jdbc꞉> 
+nil
+clj꞉metabase.driver.presto-jdbc꞉> 
+nil
+clj꞉metabase.driver.presto-jdbc꞉> 
+nil
+clj꞉metabase.driver.presto-jdbc꞉> 
+#'metabase.driver.presto-jdbc/timestamp-with-time-zone-db-type
+clj꞉metabase.driver.presto-jdbc꞉> 
+#multifn [->honeysql 0x3d973fe9]
+clj꞉metabase.driver.presto-jdbc꞉> 
+#multifn [->honeysql 0x3d973fe9]
+clj꞉metabase.driver.presto-jdbc꞉> 
+#multifn [->honeysql 0x3d973fe9]
+clj꞉metabase.driver.presto-jdbc꞉> 
+#multifn [->honeysql 0x3d973fe9]
+clj꞉metabase.driver.presto-jdbc꞉> 
+#multifn [->honeysql 0x3d973fe9]
+clj꞉metabase.driver.presto-jdbc꞉> 
+metabase.driver.presto_jdbc.AtTimeZone
+clj꞉metabase.driver.presto-jdbc꞉> 
+#'metabase.driver.presto-jdbc/in-report-zone
+clj꞉metabase.driver.presto-jdbc꞉> 
+; Syntax error compiling at (modules/drivers/presto-jdbc/src/metabase/driver/presto_jdbc.clj:0:0).
+; Can't take value of a macro: #'clojure.core/defn-
+clj꞉metabase.driver.presto-jdbc꞉> 
+metabase.driver.presto_jdbc.AtTimeZone
+clj꞉metabase.driver.presto-jdbc꞉> 
+metabase.driver.presto_jdbc.AtTimeZone
+clj꞉metabase.driver.presto-jdbc꞉> 
+#'metabase.driver.presto-jdbc/kerb-props->url-param-names
+clj꞉metabase.driver.presto-jdbc꞉> 
+#multifn [->honeysql 0x3d973fe9]
+clj꞉metabase.driver.presto-jdbc꞉> 
+#multifn [->honeysql 0x3d973fe9]
+clj꞉metabase.driver.presto-jdbc꞉> 
+#multifn [->honeysql 0x3d973fe9]
+clj꞉metabase.driver.presto-jdbc꞉> 
+#multifn [->honeysql 0x3d973fe9]
+clj꞉metabase.driver.presto-jdbc꞉> 
+#multifn [->honeysql 0x3d973fe9]
+clj꞉metabase.driver.presto-jdbc꞉> 
+#multifn [current-datetime-honeysql-form 0x79e1de5a]
+clj꞉metabase.driver.sql.query-processor꞉> cu
+; Syntax error compiling at (.calva/output-window/output.calva-repl:0:0).
+; Unable to resolve symbol: cu in this context
+clj꞉metabase.driver.sql.query-processor꞉> 
+(current-datetime-honeysql-form
+ )
+; Execution error (ArityException) at metabase.driver.sql.query-processor/eval79099 (REPL:115).
+; Wrong number of args (0) passed to: metabase.driver/dispatch-on-initialized-driver
+clj꞉metabase.driver.sql.query-processor꞉> 
+#multifn [current-datetime-honeysql-form 0x79e1de5a]
+clj꞉metabase.driver.sql.query-processor꞉> %now
+; Syntax error compiling at (.calva/output-window/output.calva-repl:0:0).
+; Unable to resolve symbol: %now in this context
+clj꞉metabase.driver.sql.query-processor꞉> 
+(%now)
+; Syntax error compiling at (.calva/output-window/output.calva-repl:125:1).
+; Unable to resolve symbol: %now in this context
+clj꞉metabase.driver.sql.query-processor꞉> 
+
+; Syntax error compiling at (.calva/output-window/output.calva-repl:125:1).
+
+
+
+; Unable to resolve symbol: %now in this context
+clj꞉metabase.driv:er.sql.query-processor꞉> 
+
+
+; Syntax error reading source at (REPL:99:1).
+; EOF while reading, starting at line 98
+clj꞉metabase.driver.sql.query-processor꞉> (:$now)
+; Execution error (IllegalArgumentException) at metabase.driver.sql.query-processor/eval79107 (REPL:140).
+; Wrong number of args passed to keyword: :$now
+clj꞉metabase.driver.sql.query-processor꞉> 
+(:%now)
+; Execution error (IllegalArgumentException) at metabase.driver.sql.query-processor/eval79109 (REPL:144).
+; Wrong number of args passed to keyword: :%now
+clj꞉metabase.driver.sql.query-processor꞉>(date)
+                                         
+                                         
+                                          
+                                          
+
+
+                                          
+#multifn [date 0x6f4a4b7f]
+clj꞉metabase.driver.sql.query-processor꞉> (date)
+; Execution error (ArityException) at metabase.driver.sql.query-processor/eval79115 (REPL:156).
+; Wrong number of args (0) passed to: metabase.driver.sql.query-processor/eval59849/fn--59850
+clj꞉metabase.driver.sql.query-processor꞉> 
+; nREPL Connection was closed
