@@ -16,3 +16,125 @@
 
 ;; JDBC SQL
 (sql-jdbc.tx/add-test-extensions! :trino)
+
+
+(defmethod tx/sorts-nil-first? :trino [_ _] false)
+
+;; during unit tests don't treat presto as having FK support
+(defmethod driver/supports? [:trino :foreign-keys] [_ _] (not config/is-test?))
+
+(doseq [[base-type db-type] {:type/BigInteger             "BIGINT"
+                             :type/Boolean                "BOOLEAN"
+                             :type/Date                   "DATE"
+                             :type/DateTime               "TIMESTAMP"
+                             :type/DateTimeWithTZ         "TIMESTAMP WITH TIME ZONE"
+                             :type/DateTimeWithZoneID     "TIMESTAMP WITH TIME ZONE"
+                             :type/DateTimeWithZoneOffset "TIMESTAMP WITH TIME ZONE"
+                             :type/Decimal                "DECIMAL"
+                             :type/Float                  "DOUBLE"
+                             :type/Integer                "INTEGER"
+                             :type/Text                   "VARCHAR"
+                             :type/Time                   "TIME"
+                             :type/TimeWithTZ             "TIME WITH TIME ZONE"}]
+  (defmethod sql.tx/field-base-type->sql-type [:trino base-type] [_ _] db-type))
+
+(defmethod tx/dbdef->connection-details :trino
+  [_ _ {:keys [database-name]}]
+  {:host                               (tx/db-test-env-var-or-throw :trino :host "localhost")
+   :port                               (tx/db-test-env-var :trino :port "8080")
+   :user                               (tx/db-test-env-var-or-throw :trino :user "metabase")
+   :additional-options                 (tx/db-test-env-var :trino :additional-options nil)
+   :ssl                                (tx/db-test-env-var :trino :ssl "false")
+   :kerberos                           (tx/db-test-env-var :trino :kerberos "false")
+   :kerberos-principal                 (tx/db-test-env-var :trino :kerberos-principal nil)
+   :kerberos-remote-service-name       (tx/db-test-env-var :trino :kerberos-remote-service-name nil)
+   :kerberos-use-canonical-hostname    (tx/db-test-env-var :trino :kerberos-use-canonical-hostname nil)
+   :kerberos-credential-cache-path     (tx/db-test-env-var :trino :kerberos-credential-cache-path nil)
+   :kerberos-keytab-path               (tx/db-test-env-var :trino :kerberos-keytab-path nil)
+   :kerberos-config-path               (tx/db-test-env-var :trino :kerberos-config-path nil)
+   :kerberos-service-principal-pattern (tx/db-test-env-var :trino :kerberos-service-principal-pattern nil)
+   :catalog                            (u/snake-key database-name)
+   :schema                             (tx/db-test-env-var :trino :schema nil)})
+
+(defmethod execute/execute-sql! :trino
+  [& args]
+  (println "execute sql")
+  (apply execute/sequentially-execute-sql! args))
+
+(defn- load-data [dbdef tabledef]
+  (println "load-data")
+  ;; the JDBC driver statements fail with a cryptic status 500 error if there are too many
+  ;; parameters being set in a single statement; these numbers were arrived at empirically
+  (let [chunk-size (case (:table-name tabledef)
+                     "people" 30
+                     "reviews" 40
+                     "orders" 30
+                     "venues" 50
+                     "products" 50
+                     "cities" 50
+                     "sightings" 50
+                     "incidents" 50
+                     "checkins" 25
+                     "airport" 50
+                     100)
+        load-fn    (load-data/make-load-data-fn load-data/load-data-add-ids
+                                                (partial load-data/load-data-chunked pmap chunk-size))]
+    (load-fn :trino dbdef tabledef)))
+
+(defmethod load-data/load-data! :trino
+  [_ dbdef tabledef]
+  (load-data dbdef tabledef))
+
+(defn- jdbc-spec->connection
+  "This is to work around some weird interplay between clojure.java.jdbc caching behavior of connections based on URL,
+  combined with the fact that the Presto driver apparently closes the connection when it closes a prepare statement.
+  Therefore, create a fresh connection from the DriverManager."
+  ^Connection [jdbc-spec]
+  (DriverManager/getConnection (format "jdbc:%s:%s" (:subprotocol jdbc-spec) (:subname jdbc-spec))
+                               (connection-pool/map->properties (select-keys jdbc-spec [:user :SSL]))))
+
+(defmethod load-data/do-insert! :trino
+  [driver spec table-identifier row-or-rows]
+  (let [statements (ddl/insert-rows-ddl-statements driver table-identifier row-or-rows)]
+    (with-open [conn (jdbc-spec->connection spec)]
+      (doseq [[^String sql & params] statements]
+        (try
+          (with-open [^PreparedStatement stmt (.prepareStatement conn sql)]
+            (sql-jdbc.execute/set-parameters! driver stmt params)
+            (let [tbl-nm        ((comp last :components) (into {} table-identifier))
+                  rows-affected (.executeUpdate stmt)]
+              (println (format "[%s] Inserted %d rows into trino table %s." driver rows-affected tbl-nm))))
+          (catch Throwable e
+            (throw (ex-info (format "[%s] Error executing SQL: %s" driver (ex-message e))
+                            {:driver driver, :sql sql, :params params}
+                            e))))))))
+
+(defmethod sql.tx/drop-db-if-exists-sql :trino [_ _] nil)
+(defmethod sql.tx/create-db-sql         :trino [_ _] nil)
+
+(defmethod sql.tx/qualified-name-components :trino
+  ;; use the default schema from the in-memory connector
+  ([_ db-name]                       [(u/snake-key db-name) "default"])
+  ([_ db-name table-name]            [(u/snake-key db-name) "default" (u/snake-key table-name)])
+  ([_ db-name table-name field-name] [(u/snake-key db-name) "default" (u/snake-key table-name) field-name]))
+
+(defmethod sql.tx/pk-sql-type :trino
+  [_]
+  "INTEGER")
+
+(defmethod sql.tx/create-table-sql :trino
+  [driver dbdef tabledef]
+  ;; strip out the PRIMARY KEY stuff from the CREATE TABLE statement
+  (let [sql ((get-method sql.tx/create-table-sql :sql/test-extensions) driver dbdef tabledef)]
+    (str/replace sql #", PRIMARY KEY \([^)]+\)" "")))
+
+(defmethod tx/format-name :trino [_ table-or-field-name]
+  (u/snake-key table-or-field-name))
+
+;; Presto doesn't support FKs, at least not adding them via DDL
+(defmethod sql.tx/add-fk-sql :trino
+  [_ _ _ _]
+  nil)
+
+;; FIXME Presto actually has very good timezone support
+#_(defmethod tx/has-questionable-timezone-support? :trino [_] true)

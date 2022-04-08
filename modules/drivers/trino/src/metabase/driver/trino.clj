@@ -14,10 +14,6 @@
   (:import io.trino.jdbc.TrinoConnection
            com.mchange.v2.c3p0.C3P0ProxyConnection))
 
-  
-
-
-
 (driver/register! :trino-jdbc, :parent #{:presto-jdbc, ::legacy/use-legacy-classes-for-read-and-set})
 
 ;;; +----------------------------------------------------------------------------------------------------------------+

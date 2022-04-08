@@ -1,6 +1,6 @@
 info:
   name: Metabase Trino Driver
-  version: 1.0.0-trino-jdbc-361
+  version: 1.0.0-trino-jdbc-375
   description: Allows Metabase to connect to Trino databases. Community Supported driver.
 driver:
   name: trino
