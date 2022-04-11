@@ -22,15 +22,15 @@
   </Appenders>
 
   <Loggers>
-    <Logger name="metabase" level="TRACE"/>
-    <Logger name="metabase-enterprise" level="TRACE"/>
-    <Logger name="metabase.plugins" level="TRACE"/>
-    <Logger name="metabase.server.middleware" level="TRACE"/>
-    <Logger name="metabase.query-processor.async" level="TRACE"/>
-    <Logger name="com.mchange" level="TRACE"/>
-    <Logger name="liquibase" level="TRACE"/>
+    <Logger name="metabase" level="WARN"/>
+    <Logger name="metabase-enterprise" level="WARN"/>
+    <Logger name="metabase.plugins" level="INFO"/>
+    <Logger name="metabase.server.middleware" level="WARN"/>
+    <Logger name="metabase.query-processor.async" level="WARN"/>
+    <Logger name="com.mchange" level="WARN"/>
+    <Logger name="liquibase" level="WARN"/>
 
-    <Root level="TRACE">
+    <Root level="WARN">pwd
       <AppenderRef ref="STDOUT"/>
     </Root>
   </Loggers>

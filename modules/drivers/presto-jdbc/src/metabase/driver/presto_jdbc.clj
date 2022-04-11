@@ -286,7 +286,6 @@
 
 (defmethod sql-jdbc.sync/database-type->base-type :presto-jdbc
   [_ field-type]
-  Error fingerprinting Table
   (presto-common/presto-type->base-type field-type))
 
 (defn- have-select-privilege?

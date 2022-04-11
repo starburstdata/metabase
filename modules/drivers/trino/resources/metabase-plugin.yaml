@@ -2,6 +2,8 @@ info:
   name: Metabase Trino Driver
   version: 1.0.0-trino-jdbc-375
   description: Allows Metabase to connect to Trino databases. Community Supported driver.
+dependencies:
+  - plugin: Metabase Presto JDBC Driver
 driver:
   name: trino
   display-name: Trino
@@ -33,6 +35,8 @@ driver:
         - placeholder: "trustServerCertificate=false"
 
 init:
+  - step: load-namespace
+    namespace: metabase.driver.presto-jdbc
   - step: load-namespace
     namespace: metabase.driver.trino
   - step: register-jdbc-driver
