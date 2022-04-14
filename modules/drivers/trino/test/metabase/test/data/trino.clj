@@ -58,11 +58,9 @@
 
 (defmethod execute/execute-sql! :trino
   [& args]
-  (println "execute sql")
   (apply execute/sequentially-execute-sql! args))
 
 (defn- load-data [dbdef tabledef]
-  (println "load-data")
   ;; the JDBC driver statements fail with a cryptic status 500 error if there are too many
   ;; parameters being set in a single statement; these numbers were arrived at empirically
   (let [chunk-size (case (:table-name tabledef)

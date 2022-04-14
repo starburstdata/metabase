@@ -3,6 +3,9 @@
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
             [metabase.driver :as driver]
+            [java-time :as t]
+            [metabase.util :as u]
+            [metabase.util.date-2 :as u.date]
             [metabase.driver.presto-jdbc :as presto-jdbc]
             [metabase.driver.sql-jdbc.common :as sql-jdbc.common]
             [metabase.driver.sql-jdbc.connection :as sql-jdbc.conn]
@@ -12,7 +15,9 @@
             [metabase.util.i18n :refer [trs]])
   
   (:import io.trino.jdbc.TrinoConnection
-           com.mchange.v2.c3p0.C3P0ProxyConnection))
+          [java.sql Connection PreparedStatement ResultSet ResultSetMetaData Time Types]
+          [java.time LocalDateTime LocalTime OffsetDateTime OffsetTime ZonedDateTime]
+          com.mchange.v2.c3p0.C3P0ProxyConnection))
 
 (driver/register! :trino-jdbc, :parent #{:presto-jdbc, ::legacy/use-legacy-classes-for-read-and-set})
 
@@ -73,6 +78,12 @@
   [^C3P0ProxyConnection pooled-conn]
   (.unwrap pooled-conn TrinoConnection))
 
+(defn- ^TrinoConnection rs->presto-conn
+  "Returns the `TrinoConnection` associated with the given `ResultSet` `rs`."
+  [^ResultSet rs]
+  (-> (.. rs getStatement getConnection)
+      pooled-conn->presto-conn))
+
 (defmethod sql-jdbc.execute/connection-with-timezone :trino
   [driver database ^String timezone-id]
   ;; Presto supports setting the session timezone via a `TrinoConnection` instance method. Under the covers,
@@ -93,3 +104,41 @@
       (catch Throwable e
         (.close conn)
         (throw e)))))
+
+(defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIMESTAMP]
+  [_ ^ResultSet rset _ ^Integer i]
+  (println "Custom Thunk Types/TIMESTAMP ...")
+  (let [zone     (.getTimeZoneId (rs->presto-conn rset))]
+    (fn []
+      (when-let [s (.getString rset i)]
+        (when-let [t (u.date/parse s)]
+          (cond
+            (or (instance? OffsetDateTime t)
+                (instance? ZonedDateTime t))
+            (-> (t/offset-date-time t)
+              ;; tests are expecting this to be in the UTC offset, so convert to that
+                (t/with-offset-same-instant (t/zone-offset 0)))
+
+            ;; presto "helpfully" returns local results already adjusted to session time zone offset for us, e.g.
+            ;; '2021-06-15T00:00:00' becomes '2021-06-15T07:00:00' if the session timezone is US/Pacific. Undo the
+            ;; madness and convert back to UTC
+            zone
+            (-> (t/zoned-date-time t zone)
+                (u.date/with-time-zone-same-instant "UTC")
+                t/local-date-time)
+            :else
+            t))))))
+
+(defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIMESTAMP_WITH_TIMEZONE]
+  [_ ^ResultSet rset _ ^long i]
+  (println "Custom Thunk...")
+  (fn []
+    (let [t (.getObject rset i java.sql.Timestamp)]
+      (.toInstant t))))
+
+(defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIME_WITH_TIMEZONE]
+  [_ ^ResultSet rset _ ^long i]
+  (println "Custom Thunk TIME...")
+  (fn []
+    (let [t (.getObject rset i java.sql.Timestamp)]
+      (.toInstant t))))

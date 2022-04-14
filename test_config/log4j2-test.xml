@@ -6,11 +6,11 @@
     </Console>
   </Appenders>
   <Loggers>
-    <Logger name="metabase" level="WARN"/>
-    <Logger name="metabase-enterprise" level="WARN"/>
+    <Logger name="metabase" level="FATAL"/>
+    <Logger name="metabase-enterprise" level="FATAL"/>
     <Logger name="liquibase" level="FATAL"/>
 
-    <Root level="WARN">
+    <Root level="ERROR">
       <AppenderRef ref="Console"/>
     </Root>
   </Loggers>

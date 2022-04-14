@@ -383,29 +383,35 @@
       ^{:name (format "(.getObject rs %d)" i)} (fn []
                                                  (.getObject rs i)))))
 
-(defn- get-object-of-class-thunk [^ResultSet rs, ^long i, ^Class klass]
+(defn get-object-of-class-thunk [^ResultSet rs, ^long i, ^Class klass]
   ^{:name (format "(.getObject rs %d %s)" i (.getCanonicalName klass))}
+  (println (format "(.getObject rs %d %s)" i (.getCanonicalName klass)))
   (fn []
     (.getObject rs i klass)))
 
 (defmethod read-column-thunk [:sql-jdbc Types/TIMESTAMP]
   [_ rs _ i]
+  (println "Thunk Types/TIMESTAMP")
   (get-object-of-class-thunk rs i java.time.LocalDateTime))
 
 (defmethod read-column-thunk [:sql-jdbc Types/TIMESTAMP_WITH_TIMEZONE]
   [_ rs _ i]
+  (println "Thunk Types/TIMESTAMP_WITH_TIMEZONE")
   (get-object-of-class-thunk rs i java.time.OffsetDateTime))
 
 (defmethod read-column-thunk [:sql-jdbc Types/DATE]
   [_ rs _ i]
+  (println "Thunk DATE")
   (get-object-of-class-thunk rs i java.time.LocalDate))
 
 (defmethod read-column-thunk [:sql-jdbc Types/TIME]
   [_ rs _ i]
+  (println "Thunk TIME")
   (get-object-of-class-thunk rs i java.time.LocalTime))
 
 (defmethod read-column-thunk [:sql-jdbc Types/TIME_WITH_TIMEZONE]
   [_ rs _ i]
+  (println "Thunk TIMEwtz")
   (get-object-of-class-thunk rs i java.time.OffsetTime))
 
 (defn- column-range [^ResultSetMetaData rsmeta]
