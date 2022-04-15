@@ -107,7 +107,7 @@
 
 (defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIMESTAMP]
   [_ ^ResultSet rset _ ^Integer i]
-  (println "Custom Thunk Types/TIMESTAMP ...")
+  (println "Custom Thunk Types/TIMESTAMP...")
   (let [zone     (.getTimeZoneId (rs->presto-conn rset))]
     (fn []
       (when-let [s (.getString rset i)]
@@ -131,14 +131,22 @@
 
 (defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIMESTAMP_WITH_TIMEZONE]
   [_ ^ResultSet rset _ ^long i]
-  (println "Custom Thunk...")
+  (println "Custom Thunk Types/TIMESTAMP_WITH_TIMEZONE...")
   (fn []
-    (let [t (.getObject rset i java.sql.Timestamp)]
-      (.toInstant t))))
+    (let [t (.getObject rset i java.sql.Timestamp)
+          instant (.toInstant t)]
+      (.atOffset instant (t/zone-offset))
+      )))
 
 (defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIME_WITH_TIMEZONE]
-  [_ ^ResultSet rset _ ^long i]
-  (println "Custom Thunk TIME...")
+  [_ rs _ i]
+  (println "Custom Thunk TIME_WITH_TIMEZONE...")
   (fn []
-    (let [t (.getObject rset i java.sql.Timestamp)]
-      (.toInstant t))))
+    (let [t (.getObject rs i java.sql.Time)
+          local-time (t/local-time (.toString t))
+          ;; zone (t/zone-id)
+          ;; zone-rules (.getRules zone)
+          zone-offset (t/zone-offset)
+          zoned-local-time (t/offset-time local-time zone-offset)]
+      (println (format "SQL TIME: %s" (.toString t)))
+      zoned-local-time)))

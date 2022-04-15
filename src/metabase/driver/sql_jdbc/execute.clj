@@ -409,10 +409,17 @@
   (println "Thunk TIME")
   (get-object-of-class-thunk rs i java.time.LocalTime))
 
-(defmethod read-column-thunk [:sql-jdbc Types/TIME_WITH_TIMEZONE]
+(defmethod read-column-thunk [:trino Types/TIME_WITH_TIMEZONE]
   [_ rs _ i]
-  (println "Thunk TIMEwtz")
-  (get-object-of-class-thunk rs i java.time.OffsetTime))
+  (println "Thunk TIME_WITH_TIMEZONE...")
+  (fn []
+    (let [t (.getObject rs i java.sql.Time)
+          local-time (t/local-time (.toString t))
+          ;; zone (t/zone-id)
+          ;; zone-rules (.getRules zone)
+          zone-offset (t/zone-offset)
+          zoned-local-time ((t/offset-time local-time zone-offset))]
+      zoned-local-time)))
 
 (defn- column-range [^ResultSetMetaData rsmeta]
   (range 1 (inc (.getColumnCount rsmeta))))
