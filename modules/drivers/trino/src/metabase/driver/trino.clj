@@ -2,22 +2,21 @@
   "Trino JDBC driver."
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [metabase.driver :as driver]
             [java-time :as t]
-            [metabase.util :as u]
-            [metabase.util.date-2 :as u.date]
-            [metabase.driver.presto-jdbc :as presto-jdbc]
+            [metabase.db.spec :as db.spec]
+            [metabase.driver :as driver]
             [metabase.driver.sql-jdbc.common :as sql-jdbc.common]
             [metabase.driver.sql-jdbc.connection :as sql-jdbc.conn]
             [metabase.driver.sql-jdbc.execute :as sql-jdbc.execute]
-            [metabase.db.spec :as db.spec]
             [metabase.driver.sql-jdbc.execute.legacy-impl :as legacy]
+            [metabase.util.date-2 :as u.date]
             [metabase.util.i18n :refer [trs]])
   
-  (:import io.trino.jdbc.TrinoConnection
-          [java.sql Connection PreparedStatement ResultSet ResultSetMetaData Time Types]
-          [java.time LocalDateTime LocalTime OffsetDateTime OffsetTime ZonedDateTime]
-          com.mchange.v2.c3p0.C3P0ProxyConnection))
+  (:import com.mchange.v2.c3p0.C3P0ProxyConnection
+           io.trino.jdbc.TrinoConnection
+           [java.sql ResultSet Time Types]
+           [java.time LocalTime OffsetDateTime ZonedDateTime]
+           [java.time.temporal ChronoField]))
 
 (driver/register! :trino-jdbc, :parent #{:presto-jdbc, ::legacy/use-legacy-classes-for-read-and-set})
 
@@ -84,6 +83,17 @@
   (-> (.. rs getStatement getConnection)
       pooled-conn->presto-conn))
 
+;;copied from prestor driver
+(defn- ^LocalTime sql-time->local-time
+  "Converts the given instance of `java.sql.Time` into a `java.time.LocalTime`, including milliseconds. Needed for
+  similar reasons as `set-time-param` above."
+  [^Time sql-time]
+  ;; Java 11 adds a simpler `ofInstant` method, but since we need to run on JDK 8, we can't use it
+  ;; https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/LocalTime.html#ofInstant(java.time.Instant,java.time.ZoneId)
+  (let [^LocalTime lt (t/local-time sql-time)
+        ^Long millis  (mod (.getTime sql-time) 1000)]
+    (.with lt ChronoField/MILLI_OF_SECOND millis)))
+
 (defmethod sql-jdbc.execute/connection-with-timezone :trino
   [driver database ^String timezone-id]
   ;; Presto supports setting the session timezone via a `TrinoConnection` instance method. Under the covers,
@@ -107,7 +117,6 @@
 
 (defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIMESTAMP]
   [_ ^ResultSet rset _ ^Integer i]
-  (println "Custom Thunk Types/TIMESTAMP...")
   (let [zone     (.getTimeZoneId (rs->presto-conn rset))]
     (fn []
       (when-let [s (.getString rset i)]
@@ -123,15 +132,20 @@
             ;; '2021-06-15T00:00:00' becomes '2021-06-15T07:00:00' if the session timezone is US/Pacific. Undo the
             ;; madness and convert back to UTC
             zone
-            (-> (t/zoned-date-time t zone)
-                (u.date/with-time-zone-same-instant "UTC")
-                t/local-date-time)
+            (t/local-date-time t)
             :else
             t))))))
 
+;; (defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIMESTAMP]
+;;   [_ ^ResultSet rset _ ^long i]
+;;   (println "Custom Thunk Types/TIMESTAMP...")
+;;   (fn []
+;;     (let [t (.getObject rset i java.sql.Timestamp)
+;;           instant (.toInstant t)]
+;;       (.atOffset instant (t/zone-offset)))))
+
 (defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIMESTAMP_WITH_TIMEZONE]
   [_ ^ResultSet rset _ ^long i]
-  (println "Custom Thunk Types/TIMESTAMP_WITH_TIMEZONE...")
   (fn []
     (let [t (.getObject rset i java.sql.Timestamp)
           instant (.toInstant t)]
@@ -140,13 +154,21 @@
 
 (defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIME_WITH_TIMEZONE]
   [_ rs _ i]
-  (println "Custom Thunk TIME_WITH_TIMEZONE...")
+  ;; (fn []
+  ;;   (let [t (.getObject rs i java.time.LocalTime)
+  ;;         ;; local-time (t/local-time (.toString t))
+  ;;         ;; zone (t/zone-id)
+  ;;         ;; zone-rules (.getRules zone)
+  ;;         zone-offset (t/zone-offset)
+  ;;         zoned-local-time (t/offset-time t zone-offset)]
+  ;;     (println (format "SQL TIME: %s" (.toString t)))
+  ;;     zoned-local-time)))
   (fn []
-    (let [t (.getObject rs i java.sql.Time)
-          local-time (t/local-time (.toString t))
-          ;; zone (t/zone-id)
-          ;; zone-rules (.getRules zone)
-          zone-offset (t/zone-offset)
-          zoned-local-time (t/offset-time local-time zone-offset)]
-      (println (format "SQL TIME: %s" (.toString t)))
-      zoned-local-time)))
+    (let [local-time (-> (.getTime rs i)
+                         sql-time->local-time)]
+      ;; for both `time` and `time with time zone`, the JDBC type reported by the driver is `Types/TIME`, hence
+        ;; even though this value is a `LocalTime`, the base-type is time with time zone, so we need to shift it back to
+        ;; the UTC (0) offset
+       (t/offset-time
+         local-time
+         (t/zone-offset 0)))))
