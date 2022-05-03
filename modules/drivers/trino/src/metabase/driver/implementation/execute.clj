@@ -56,7 +56,7 @@
 
 (defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIMESTAMP]
   [_ ^ResultSet rset _ ^Integer i]
-  ;; "Attempts to convert Timestamp Offset back to UTC if possible.
+  ;; "Attempts to convert Timestamp to OffsetDateTime with UTC if possible.
   (let [zone     (.getTimeZoneId (rs->trino-conn rset))]
     (fn []
       (when-let [s (.getString rset i)]

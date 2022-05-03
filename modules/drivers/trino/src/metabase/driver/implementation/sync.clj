@@ -27,10 +27,13 @@
     [#"(?i)json"                       :type/Text] ; TODO - this should probably be Dictionary or something
     [#"(?i)date"                       :type/Date]
     [#"(?i)^timestamp$"                :type/DateTime]
+    [#"(?i)^timestamp\(\d+\)$"         :type/DateTime]
     [#"(?i)^timestamp with time zone$" :type/DateTimeWithTZ]
+    [#"(?i)^timestamp with time zone\(\d+\)$" :type/DateTimeWithTZ]
     [#"(?i)^time$"                     :type/Time]
+    [#"(?i)^time\(\d+\)$"              :type/Time]
     [#"(?i)^time with time zone$"      :type/TimeWithTZ]
-    #_[#"(?i)time.+"                     :type/DateTime] ; TODO - get rid of this one?
+    [#"(?i)^time with time zone\(\d+\)$"  :type/TimeWithTZ]
     [#"(?i)array"                      :type/Array]
     [#"(?i)map"                        :type/Dictionary]
     [#"(?i)row.*"                      :type/*] ; TODO - again, but this time we supposedly have a schema
@@ -60,7 +63,9 @@
 
 (defmethod sql-jdbc.sync/database-type->base-type :trino
   [_ field-type]
-  (trino-type->base-type field-type))
+  (let [base-type (trino-type->base-type field-type)]
+    (println (format "%s -> %s" field-type base-type))
+    base-type))
 
 (defn- have-select-privilege?
   "Checks whether the connected user has permission to select from the given `table-name`, in the given `schema`.
