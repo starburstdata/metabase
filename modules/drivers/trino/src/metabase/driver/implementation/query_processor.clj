@@ -164,11 +164,6 @@
   [_ bool]
   (hsql/raw (if bool "TRUE" "FALSE")))
 
-;; (defmethod sql.qp/->honeysql [:trino :time]
-;;   [_ [_ t]]
-;;   ;; Convert t to locale time, then format as sql. Then add cast.
-;;   (hx/cast :time (u.date/format-sql (t/local-time t))))
-
 (defmethod sql.qp/->honeysql [:trino :regex-match-first]
   [driver [_ arg pattern]]
   (hsql/call :regexp_extract (sql.qp/->honeysql driver arg) (sql.qp/->honeysql driver pattern)))
@@ -194,8 +189,8 @@
 
 (defmethod sql.qp/->honeysql [:trino :time]
   [_ [_ t]]
-  ;; make time in UTC to avoid any interpretation by Trino in the connection (i.e. report) time zone
-  (hx/cast "time with time zone" (u.date/format-sql (t/offset-time (t/local-time t) 0))))
+  ;; Convert t to locale time, then format as sql. Then add cast.
+  (hx/cast :time (u.date/format-sql (t/local-time t))))
 
 (defmethod sql.qp/->honeysql [:trino ZonedDateTime]
   [_ ^ZonedDateTime t]
