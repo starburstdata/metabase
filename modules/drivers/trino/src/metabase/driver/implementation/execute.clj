@@ -56,6 +56,7 @@
 
 (defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIMESTAMP]
   [_ ^ResultSet rset _ ^Integer i]
+  ;; "Attempts to convert Timestamp Offset back to UTC if possible.
   (let [zone     (.getTimeZoneId (rs->trino-conn rset))]
     (fn []
       (when-let [s (.getString rset i)]
@@ -64,10 +65,10 @@
             (or (instance? OffsetDateTime t)
                 (instance? ZonedDateTime t))
             (-> (t/offset-date-time t)
-              ;; tests are expecting this to be in the UTC offset, so convert to that
+              ;; tests are expecting this to be in the UTC offset, so convert to UTC
                 (t/with-offset-same-instant (t/zone-offset 0)))
 
-            ;; presto "helpfully" returns local results already adjusted to session time zone offset for us, e.g.
+            ;; Trino returns local results already adjusted to session time zone offset for us, e.g.
             ;; '2021-06-15T00:00:00' becomes '2021-06-15T07:00:00' if the session timezone is US/Pacific. Undo the
             ;; madness and convert back to UTC
             zone
@@ -87,6 +88,7 @@
 
 (defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIME]
   [_ ^ResultSet rs ^ResultSetMetaData rs-meta ^Integer i]
+  ;; When reading Time column, if base type is 'time with time zone', shift to UTC. Otherwise, just return local time.
   (let [type-name  (.getColumnTypeName rs-meta i)
         base-type  (trino-type->base-type type-name)
         with-tz?   (isa? base-type :type/TimeWithTZ)]
@@ -106,23 +108,15 @@
 
 (defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIMESTAMP_WITH_TIMEZONE]
   [_ ^ResultSet rset _ ^long i]
+  ;; Converts TIMESTAMP_WITH_TIMEZONE to instant, then to OffsetDateTime with default time zone. TODO: Switch to UTC.
   (fn []
     (let [t (.getObject rset i java.sql.Timestamp)
           instant (.toInstant t)]
       (.atOffset instant (t/zone-offset)))))
 
-(defn- ^LocalTime sql-time->local-time
-  "Converts the given instance of `java.sql.Time` into a `java.time.LocalTime`, including milliseconds. Needed for
-  similar reasons as `set-time-param` above."
-  [^Time sql-time]
-  ;; Java 11 adds a simpler `ofInstant` method, but since we need to run on JDK 8, we can't use it
-  ;; https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/LocalTime.html#ofInstant(java.time.Instant,java.time.ZoneId)
-  (let [^LocalTime lt (t/local-time sql-time)
-        ^Long millis  (mod (.getTime sql-time) 1000)]
-    (.with lt ChronoField/MILLI_OF_SECOND millis)))
-
 (defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIME_WITH_TIMEZONE]
   [_ rs _ i]
+  ;; Converts TIME_WITH_TIMEZONE to local time, then to OffsetTime ti time zone UTC. TODO: Maybe this is broken?
   (fn []
     (let [local-time (-> (.getTime rs i)
                          sql-time->local-time)]
@@ -178,7 +172,7 @@
   ;; for native query parameter substitution, in order to not conflict with the `TrinoConnection` session time zone
   ;; (which was set via report time zone), it is necessary to use the `from_iso8601_timestamp` function on the string
   ;; representation of the `ZonedDateTime` instance, but converted to the report time zone
-  #_(date-time->substitution (.format (t/offset-date-time (t/local-date-time t) (t/zone-offset 0)) DateTimeFormatter/ISO_OFFSET_DATE_TIME))
+  ;_(date-time->substitution (.format (t/offset-date-time (t/local-date-time t) (t/zone-offset 0)) DateTimeFormatter/ISO_OFFSET_DATE_TIME))
   (let [report-zone       (qp.timezone/report-timezone-id-if-supported :trino)
         ^ZonedDateTime ts (if (str/blank? report-zone) t (t/with-zone-same-instant t (t/zone-id report-zone)))]
     ;; the `from_iso8601_timestamp` only accepts timestamps with an offset (not a zone ID), so only format with offset
@@ -187,13 +181,13 @@
 (defmethod sql.params.substitution/->prepared-substitution [:trino LocalDateTime]
   [_ ^LocalDateTime t]
   ;; similar to above implementation, but for `LocalDateTime`
-  ;; when Presto parses this, it will account for session (report) time zone
+  ;; when Trino parses this, it will account for session (report) time zone
   (date-time->substitution (.format t DateTimeFormatter/ISO_LOCAL_DATE_TIME)))
 
 (defmethod sql.params.substitution/->prepared-substitution [:trino OffsetDateTime]
   [_ ^OffsetDateTime t]
   ;; similar to above implementation, but for `ZonedDateTime`
-  ;; when Presto parses this, it will account for session (report) time zone
+  ;; when Trino parses this, it will account for session (report) time zone
   (date-time->substitution (.format t DateTimeFormatter/ISO_OFFSET_DATE_TIME)))
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
@@ -213,7 +207,8 @@
 
 (defmethod sql-jdbc.execute/set-parameter [:trino OffsetTime]
   [_ ^PreparedStatement ps ^Integer i t]
-  ;; necessary because `PrestoPreparedStatement` does not implement the `setTime` overload having the final `Calendar`
+  ;; Convert OffsetTime to UTC, then set time param
+  ;; necessary because `TrinoPreparedStatement` does not implement the `setTime` overload having the final `Calendar`
   ;; param
   (let [adjusted-tz (t/with-offset-same-instant t (t/zone-offset 0))]
     (set-time-param ps i adjusted-tz)))

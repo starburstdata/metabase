@@ -72,14 +72,14 @@
             (hformat/to-sql (hx/literal zone)))))
 
 (defn- in-report-zone
-  "Returns a HoneySQL form to interpret the `expr` (a temporal value) in the current report time zone, via Presto's
-  `AT TIME ZONE` operator. See https://prestodb.io/docs/current/functions/datetime.html"
+  "Returns a HoneySQL form to interpret the `expr` (a temporal value) in the current report time zone, via Trino's
+  `AT TIME ZONE` operator. See https://trino.io/docs/current/functions/datetime.html#time-zone-conversion"
   [expr]
   (let [report-zone (qp.timezone/report-timezone-id-if-supported :trino)
         ;; if the expression itself has type info, use that, or else use a parent expression's type info if defined
         type-info   (hx/type-info expr)
         db-type     (hx/type-info->db-type type-info)]
-    (if (and ;; AT TIME ZONE is only valid on these Presto types; if applied to something else (ex: `date`), then
+    (if (and ;; AT TIME ZONE is only valid on these Trino types; if applied to something else (ex: `date`), then
              ;; an error will be thrown by the query analyzer
          (contains? #{"timestamp" "timestamp with time zone" "time" "time with time zone"} db-type)
              ;; if one has already been set, don't do so again
@@ -164,9 +164,10 @@
   [_ bool]
   (hsql/raw (if bool "TRUE" "FALSE")))
 
-(defmethod sql.qp/->honeysql [:trino :time]
-  [_ [_ t]]
-  (hx/cast :time (u.date/format-sql (t/local-time t))))
+;; (defmethod sql.qp/->honeysql [:trino :time]
+;;   [_ [_ t]]
+;;   ;; Convert t to locale time, then format as sql. Then add cast.
+;;   (hx/cast :time (u.date/format-sql (t/local-time t))))
 
 (defmethod sql.qp/->honeysql [:trino :regex-match-first]
   [driver [_ arg pattern]]
@@ -193,12 +194,12 @@
 
 (defmethod sql.qp/->honeysql [:trino :time]
   [_ [_ t]]
-  ;; make time in UTC to avoid any interpretation by Presto in the connection (i.e. report) time zone
+  ;; make time in UTC to avoid any interpretation by Trino in the connection (i.e. report) time zone
   (hx/cast "time with time zone" (u.date/format-sql (t/offset-time (t/local-time t) 0))))
 
 (defmethod sql.qp/->honeysql [:trino ZonedDateTime]
   [_ ^ZonedDateTime t]
-  ;; use the Presto cast to `timestamp with time zone` operation to interpret in the correct TZ, regardless of
+  ;; use the Trino cast to `timestamp with time zone` operation to interpret in the correct TZ, regardless of
   ;; connection zone
   (hx/cast timestamp-with-time-zone-db-type (u.date/format-sql t)))
 
