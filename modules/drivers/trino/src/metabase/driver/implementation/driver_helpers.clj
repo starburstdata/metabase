@@ -3,7 +3,7 @@
   (:require [metabase.driver :as driver]
             [metabase.driver.common :as driver.common]))
 
-;;; Presto API helpers
+;;; Trino API helpers
 
 (defmethod driver/db-start-of-week :trino
   [_]
