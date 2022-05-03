@@ -22,9 +22,10 @@
 
 ;; See https://prestodb.io/docs/current/functions/datetime.html
 
-;; This is only needed for test purposes, because some of the sample data still uses legacy types
 (defmethod unprepare/unprepare-value [:trino Time]
   [driver t]
+  ;; This is only needed for test purposes, because some of the sample data still uses legacy types
+  ;; Convert time to Local time, then unprepare.
   (unprepare/unprepare-value driver (t/local-time t)))
 
 (defmethod unprepare/unprepare-value [:trino OffsetDateTime]
