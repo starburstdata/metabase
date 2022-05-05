@@ -30,10 +30,12 @@
     [#"(?i)^timestamp\(\d+\)$"         :type/DateTime]
     [#"(?i)^timestamp with time zone$" :type/DateTimeWithTZ]
     [#"(?i)^timestamp with time zone\(\d+\)$" :type/DateTimeWithTZ]
+    [#"(?i)^timestamp\(\d+\) with time zone$" :type/DateTimeWithTZ]
     [#"(?i)^time$"                     :type/Time]
     [#"(?i)^time\(\d+\)$"              :type/Time]
     [#"(?i)^time with time zone$"      :type/TimeWithTZ]
     [#"(?i)^time with time zone\(\d+\)$"  :type/TimeWithTZ]
+    [#"(?i)^time\(\d+\) with time zone$"  :type/TimeWithTZ]
     [#"(?i)array"                      :type/Array]
     [#"(?i)map"                        :type/Dictionary]
     [#"(?i)row.*"                      :type/*] ; TODO - again, but this time we supposedly have a schema
