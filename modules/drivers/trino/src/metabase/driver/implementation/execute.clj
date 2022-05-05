@@ -76,12 +76,6 @@
             :else
             t))))))
 
-(defmethod sql-jdbc.execute/read-column-thunk [:trino Types/DATE]
-  [_ ^ResultSet rs _rsmeta ^Integer i]
-  (fn []
-    (when-let [t (.getDate rs i)]
-      (t/local-date (t/local-date t)))))
-
 (defn- ^LocalTime sql-time->local-time
   "Converts the given instance of `java.sql.Time` into a `java.time.LocalTime`, including milliseconds. Needed for
   similar reasons as `set-time-param` above."
