@@ -208,13 +208,3 @@
   [_ _ expr]
   (let [report-zone (qp.timezone/report-timezone-id-if-supported :trino)]
     (hsql/call :from_unixtime expr (hx/literal (or report-zone "UTC")))))
-
-(defmethod sql.qp/unix-timestamp->honeysql [:trino :milliseconds]
-  [_ _ expr]
-  ;; from_unixtime doesn't support milliseconds directly, but we can add them back in
-  (let [report-zone (qp.timezone/report-timezone-id-if-supported :trino)
-        millis      (hsql/call (u/qualified-name ::mod) expr 1000)]
-    (hsql/call :date_add
-               (hx/literal "millisecond")
-               millis
-               (hsql/call :from_unixtime (hsql/call :/ expr 1000) (hx/literal (or report-zone "UTC"))))))

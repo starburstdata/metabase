@@ -2,7 +2,9 @@
   "Sync implementation for Trino JDBC driver."
   (:require [clojure.java.jdbc :as jdbc]
             [clojure.set :as set]
+            [clojure.string :as str]
             [clojure.tools.logging :as log]
+            [java-time :as t]
             [metabase.driver :as driver]
             [metabase.driver.sql-jdbc.connection :as sql-jdbc.conn]
             [metabase.driver.sql-jdbc.sync :as sql-jdbc.sync]
@@ -130,3 +132,7 @@
                                 :base-type         (trino-type->base-type type)
                                 :database-position idx}))
                 (jdbc/reducible-query {:connection conn} sql))})))
+
+(defmethod sql-jdbc.sync/db-default-timezone :trino
+  [_ spec]
+  (let [] "UTC"))

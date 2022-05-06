@@ -1,9 +1,11 @@
 (ns metabase.driver.implementation.connectivity
   "Connectivity implementation for Trino JDBC driver."
-  (:require [clojure.string :as str]
+  (:require [clojure.set :as set]
+            [clojure.string :as str]
             [metabase.db.spec :as mdb.spec]
             [metabase.driver.sql-jdbc.common :as sql-jdbc.common]
-            [metabase.driver.sql-jdbc.connection :as sql-jdbc.conn]))
+            [metabase.driver.sql-jdbc.connection :as sql-jdbc.conn]
+            [metabase.util.i18n :refer [trs]]))
 
 (defn- db-name
   "Creates a \"DB name\" for the given catalog `c` and (optional) schema `s`.  If both are specified, a slash is
@@ -20,36 +22,87 @@
     :else
     (str c "/" s)))
 
+;;; Kerberos related definitions
+(def ^:private ^:const kerb-props->url-param-names
+  {:kerberos-principal "KerberosPrincipal"
+   :kerberos-remote-service-name "KerberosRemoteServiceName"
+   :kerberos-use-canonical-hostname "KerberosUseCanonicalHostname"
+   :kerberos-credential-cache-path "KerberosCredentialCachePath"
+   :kerberos-keytab-path "KerberosKeytabPath"
+   :kerberos-service-principal-pattern "KerberosServicePrincipalPattern"
+   :kerberos-config-path "KerberosConfigPath"
+   :kerberos-delegation "KerberosDelegation"})
+
+(defn- details->kerberos-url-params [details]
+  (let [remove-blank-vals (fn [m] (into {} (remove (comp str/blank? val) m)))
+        ks                (keys kerb-props->url-param-names)]
+    (-> (select-keys details ks)
+        remove-blank-vals
+        (set/rename-keys kerb-props->url-param-names))))
+
+(defn- prepare-addl-opts [{:keys [SSL kerberos additional-options] :as details}]
+  (let [det (if kerberos
+              (if-not SSL
+                (throw (ex-info (trs "SSL must be enabled to use Kerberos authentication")
+                                {:db-details details}))
+                (update details
+                        :additional-options
+                        str
+                        ;; add separator if there are already additional-options
+                        (when-not (str/blank? additional-options) "&")
+                        ;; convert Kerberos options map to URL string
+                        (sql-jdbc.common/additional-opts->string :url (details->kerberos-url-params details))))
+              details)]
+    ;; in any case, remove the standalone Kerberos properties from details map
+    (apply dissoc (cons det (keys kerb-props->url-param-names)))))
+
 (defn- jdbc-spec
   "Creates a spec for `clojure.java.jdbc` to use for connecting to Trino via JDBC, from the given `opts`."
   [{:keys [host port catalog schema]
     :or   {host "localhost", port 5432, catalog ""}
-    :as   opts}]
-  (-> (merge
-       {:classname                     "io.trino.jdbc.TrinoDriver"
-        :subprotocol                   "trino"
-        :subname                       (mdb.spec/make-subname host port (db-name catalog schema))}
-       (dissoc opts :host :port :db :catalog :schema))
+    :as   details}]
+  (-> details
+      (merge {:classname   "io.trino.jdbc.TrinoDriver"
+              :subprotocol "trino"
+              :subname     (mdb.spec/make-subname host port (db-name catalog schema))})
+      prepare-addl-opts
+      (dissoc :host :port :db :catalog :schema :tunnel-enabled :engine :kerberos)
       sql-jdbc.common/handle-additional-options))
 
+(defn- str->bool [v]
+  (if (string? v)
+    (Boolean/parseBoolean v)
+    v))
+
+(defn- bool->str [v]
+  (if (boolean? v)
+    (str v)
+    v))
+
 (defmethod sql-jdbc.conn/connection-details->spec :trino
-  [_ {ssl? :ssl, :as details-map}]
+  [_ details-map]
   (let [props (-> details-map
                   (update :port (fn [port]
                                   (if (string? port)
                                     (Integer/parseInt port)
                                     port)))
-                  (assoc :SSL ssl?)
-                ;; remove any Metabase specific properties that are not recognized by the Trino JDBC driver, 
-                ;; which throws an error if any are unrecognized.
+                  (update :ssl str->bool)
+                  (update :kerberos str->bool)
+                  (update :kerberos-delegation bool->str)
+                  (assoc :SSL (:ssl details-map))
+
+                ;; remove any Metabase specific properties that are not recognized by the PrestoDB JDBC driver, which is
+                ;; very picky about properties (throwing an error if any are unrecognized)
                 ;; all valid properties can be found in the JDBC Driver source here:
-                ;; https://trino.io/docs/current/installation/jdbc.html#parameter-reference
-                  (select-keys [:host :port :catalog :schema :additional-options ; needed for [jdbc-spec]
-                                ;; Trino JDBC driver specific properties
-                                :user :password :sessionUser :socksProxy :httpProxy :clientInfo :clientTags :traceToken
-                                :source :applicationNamePrefix ::accessToken :SSL :SSLVerification :SSLKeyStorePath 
-                                :SSLKeyStorePassword :SSLKeyStoreType :SSLTrustStorePath :SSLTrustStorePassword :SSLTrustStoreType
-                                :SSLUseSystemTrustStore :KerberosRemoteServiceName :KerberosPrincipal :KerberosUseCanonicalHostname :KerberosServicePrincipalPattern
-                                :KerberosConfigPath :KerberosKeytabPath :KerberosCredentialCachePath :KerberosDelegation 
-                                :extraCredentials :roles :sessionProperties :externalAuthentication :externalAuthenticationTokenCache :disableCompression :assumeLiteralNamesInMetadataCallsForNonConformingClients]))]
+                ;; https://github.com/prestodb/presto/blob/master/presto-jdbc/src/main/java/com/facebook/presto/jdbc/ConnectionProperties.java
+                  (select-keys (concat
+                                [:host :port :catalog :schema :additional-options ; needed for `jdbc-spec`
+                               ;; JDBC driver specific properties
+                                 :kerberos ; we need our boolean property indicating if Kerberos is enabled, but the rest of them come from `kerb-props->url-param-names` (below)
+                                 :user :password :sessionUser :socksProxy :httpProxy :clientInfo :clientTags :traceToken
+                                 :source :applicationNamePrefix ::accessToken :SSL :SSLVerification :SSLKeyStorePath
+                                 :SSLKeyStorePassword :SSLKeyStoreType :SSLTrustStorePath :SSLTrustStorePassword :SSLTrustStoreType :SSLUseSystemTrustStore
+                                 :extraCredentials :roles :sessionProperties :externalAuthentication :externalAuthenticationTokenCache :disableCompression 
+                                 :assumeLiteralNamesInMetadataCallsForNonConformingClients]
+                                (keys kerb-props->url-param-names))))]
     (jdbc-spec props)))
