@@ -134,5 +134,6 @@
                 (jdbc/reducible-query {:connection conn} sql))})))
 
 (defmethod sql-jdbc.sync/db-default-timezone :trino
-  [_ spec]
-  (let [] "UTC"))
+  [_ spec]   
+  (let [[{:keys [time-zone]}] (jdbc/query spec "SELECT current_timezone() as \"time-zone\"")]
+    time-zone))

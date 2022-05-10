@@ -17,7 +17,6 @@
             [metabase.sync :as sync]
             [metabase.test :as mt]
             [metabase.test.fixtures :as fixtures]
-            [metabase.test.util :as tu]
             [toucan.db :as db]))
 
 (use-fixtures :once (fixtures/initialize :db))
@@ -101,25 +100,9 @@
 
 (deftest db-timezone-id-test
   (mt/test-driver :trino
-                  (let [timezone (fn [result-row]
-                                   (let [db (mt/db)]
-                                     (with-redefs [jdbc/query (let [orig jdbc/query]
-                                                                (fn [spec sql-args & options]
-                                                                  (if (and (string? sql-args)
-                                                                           (str/includes? sql-args "GLOBAL.time_zone"))
-                                                                    [result-row]
-                                                                    (apply orig spec sql-args options))))]
-                                       (driver/db-default-timezone driver/*driver* db))))]
                     (testing "If global timezone is 'SYSTEM', should use system timezone"
                       (is (= "UTC"
-                             (timezone {:global_tz "SYSTEM", :system_tz "UTC"})))))
-
-                  (testing "real timezone query doesn't fail"
-                    (is (nil? (try
-                                (driver/db-default-timezone driver/*driver* (mt/db))
-                                nil
-                                (catch Throwable e
-                                  e)))))))
+                             (driver/db-default-timezone driver/*driver* (mt/db)))))))
 
 (deftest template-tag-timezone-test
   (mt/test-driver :trino
