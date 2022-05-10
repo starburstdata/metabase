@@ -1,10 +1,10 @@
 (ns metabase.driver.implementation.driver-helpers
-  "Driver api implementation for Trino JDBC driver."
+  "Driver api implementation for Starburst driver."
   (:require [metabase.driver :as driver]))
 
-;;; Trino API helpers
+;;; Starburst API helpers
 
-(defmethod driver/db-start-of-week :trino
+(defmethod driver/db-start-of-week :starburst
   [_]
   :monday)
 
@@ -16,4 +16,4 @@
                               :expression-aggregations         true
                               :binning                         true
                               :foreign-keys                    true}]
-  (defmethod driver/supports? [:trino feature] [_ _] supported?))
+  (defmethod driver/supports? [:starburst feature] [_ _] supported?))

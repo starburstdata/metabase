@@ -12,5 +12,5 @@
   metabase/sparksql           {:local/root "sparksql"}
   metabase/sqlite             {:local/root "sqlite"}
   metabase/sqlserver          {:local/root "sqlserver"}
-  metabase/trino              {:local/root "trino"}
+  metabase/starburst          {:local/root "starburst"}
   metabase/vertica            {:local/root "vertica"}}}

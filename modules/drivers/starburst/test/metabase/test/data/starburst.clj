@@ -1,5 +1,5 @@
-(ns metabase.test.data.trino
-  "Trino driver test extensions."
+(ns metabase.test.data.starburst
+  "Starburst driver test extensions."
   (:require [clojure.string :as str]
             [metabase.config :as config]
             [metabase.connection-pool :as connection-pool]
@@ -16,13 +16,13 @@
   (:import [java.sql Connection DriverManager PreparedStatement]))
 
 ;; JDBC SQL
-(sql-jdbc.tx/add-test-extensions! :trino)
+(sql-jdbc.tx/add-test-extensions! :starburst)
 
 
-(defmethod tx/sorts-nil-first? :trino [_ _] false)
+(defmethod tx/sorts-nil-first? :starburst [_ _] false)
 
 ;; during unit tests don't treat presto as having FK support
-(defmethod driver/supports? [:trino :foreign-keys] [_ _] (not config/is-test?))
+(defmethod driver/supports? [:starburst :foreign-keys] [_ _] (not config/is-test?))
 
 (doseq [[base-type db-type] {:type/BigInteger             "BIGINT"
                              :type/Boolean                "BOOLEAN"
@@ -37,27 +37,27 @@
                              :type/Text                   "VARCHAR"
                              :type/Time                   "TIME"
                              :type/TimeWithTZ             "TIME WITH TIME ZONE"}]
-  (defmethod sql.tx/field-base-type->sql-type [:trino base-type] [_ _] db-type))
+  (defmethod sql.tx/field-base-type->sql-type [:starburst base-type] [_ _] db-type))
 
-(defmethod tx/dbdef->connection-details :trino
+(defmethod tx/dbdef->connection-details :starburst
   [_ _ {:keys [database-name]}]
-  {:host                               (tx/db-test-env-var-or-throw :trino :host "localhost")
-   :port                               (tx/db-test-env-var :trino :port "8080")
-   :user                               (tx/db-test-env-var-or-throw :trino :user "metabase")
-   :additional-options                 (tx/db-test-env-var :trino :additional-options nil)
-   :ssl                                (tx/db-test-env-var :trino :ssl "false")
-   :kerberos                           (tx/db-test-env-var :trino :kerberos "false")
-   :kerberos-principal                 (tx/db-test-env-var :trino :kerberos-principal nil)
-   :kerberos-remote-service-name       (tx/db-test-env-var :trino :kerberos-remote-service-name nil)
-   :kerberos-use-canonical-hostname    (tx/db-test-env-var :trino :kerberos-use-canonical-hostname nil)
-   :kerberos-credential-cache-path     (tx/db-test-env-var :trino :kerberos-credential-cache-path nil)
-   :kerberos-keytab-path               (tx/db-test-env-var :trino :kerberos-keytab-path nil)
-   :kerberos-config-path               (tx/db-test-env-var :trino :kerberos-config-path nil)
-   :kerberos-service-principal-pattern (tx/db-test-env-var :trino :kerberos-service-principal-pattern nil)
+  {:host                               (tx/db-test-env-var-or-throw :starburst :host "localhost")
+   :port                               (tx/db-test-env-var :starburst :port "8080")
+   :user                               (tx/db-test-env-var-or-throw :starburst :user "metabase")
+   :additional-options                 (tx/db-test-env-var :starburst :additional-options nil)
+   :ssl                                (tx/db-test-env-var :starburst :ssl "false")
+   :kerberos                           (tx/db-test-env-var :starburst :kerberos "false")
+   :kerberos-principal                 (tx/db-test-env-var :starburst :kerberos-principal nil)
+   :kerberos-remote-service-name       (tx/db-test-env-var :starburst :kerberos-remote-service-name nil)
+   :kerberos-use-canonical-hostname    (tx/db-test-env-var :starburst :kerberos-use-canonical-hostname nil)
+   :kerberos-credential-cache-path     (tx/db-test-env-var :starburst :kerberos-credential-cache-path nil)
+   :kerberos-keytab-path               (tx/db-test-env-var :starburst :kerberos-keytab-path nil)
+   :kerberos-config-path               (tx/db-test-env-var :starburst :kerberos-config-path nil)
+   :kerberos-service-principal-pattern (tx/db-test-env-var :starburst :kerberos-service-principal-pattern nil)
    :catalog                            (u/snake-key database-name)
-   :schema                             (tx/db-test-env-var :trino :schema nil)})
+   :schema                             (tx/db-test-env-var :starburst :schema nil)})
 
-(defmethod execute/execute-sql! :trino
+(defmethod execute/execute-sql! :starburst
   [& args]
   (apply execute/sequentially-execute-sql! args))
 
@@ -78,9 +78,9 @@
                      100)
         load-fn    (load-data/make-load-data-fn load-data/load-data-add-ids
                                                 (partial load-data/load-data-chunked pmap chunk-size))]
-    (load-fn :trino dbdef tabledef)))
+    (load-fn :starburst dbdef tabledef)))
 
-(defmethod load-data/load-data! :trino
+(defmethod load-data/load-data! :starburst
   [_ dbdef tabledef]
   (load-data dbdef tabledef))
 
@@ -92,7 +92,7 @@
   (DriverManager/getConnection (format "jdbc:%s:%s" (:subprotocol jdbc-spec) (:subname jdbc-spec))
                                (connection-pool/map->properties (select-keys jdbc-spec [:user :SSL]))))
 
-(defmethod load-data/do-insert! :trino
+(defmethod load-data/do-insert! :starburst
   [driver spec table-identifier row-or-rows]
   (let [statements (ddl/insert-rows-ddl-statements driver table-identifier row-or-rows)]
     (with-open [conn (jdbc-spec->connection spec)]
@@ -102,38 +102,38 @@
             (sql-jdbc.execute/set-parameters! driver stmt params)
             (let [tbl-nm        ((comp last :components) (into {} table-identifier))
                   rows-affected (.executeUpdate stmt)]
-              (println (format "[%s] Inserted %d rows into trino table %s." driver rows-affected tbl-nm))))
+              (println (format "[%s] Inserted %d rows into starburst table %s." driver rows-affected tbl-nm))))
           (catch Throwable e
             (throw (ex-info (format "[%s] Error executing SQL: %s" driver (ex-message e))
                             {:driver driver, :sql sql, :params params}
                             e))))))))
 
-(defmethod sql.tx/drop-db-if-exists-sql :trino [_ _] nil)
-(defmethod sql.tx/create-db-sql         :trino [_ _] nil)
+(defmethod sql.tx/drop-db-if-exists-sql :starburst [_ _] nil)
+(defmethod sql.tx/create-db-sql         :starburst [_ _] nil)
 
-(defmethod sql.tx/qualified-name-components :trino
+(defmethod sql.tx/qualified-name-components :starburst
   ;; use the default schema from the in-memory connector
   ([_ db-name]                       [(u/snake-key db-name) "default"])
   ([_ db-name table-name]            [(u/snake-key db-name) "default" (u/snake-key table-name)])
   ([_ db-name table-name field-name] [(u/snake-key db-name) "default" (u/snake-key table-name) field-name]))
 
-(defmethod sql.tx/pk-sql-type :trino
+(defmethod sql.tx/pk-sql-type :starburst
   [_]
   "INTEGER")
 
-(defmethod sql.tx/create-table-sql :trino
+(defmethod sql.tx/create-table-sql :starburst
   [driver dbdef tabledef]
   ;; strip out the PRIMARY KEY stuff from the CREATE TABLE statement
   (let [sql ((get-method sql.tx/create-table-sql :sql/test-extensions) driver dbdef tabledef)]
     (str/replace sql #", PRIMARY KEY \([^)]+\)" "")))
 
-(defmethod ddl.i/format-name :trino [_ table-or-field-name]
+(defmethod ddl.i/format-name :starburst [_ table-or-field-name]
   (u/snake-key table-or-field-name))
 
 ;; Presto doesn't support FKs, at least not adding them via DDL
-(defmethod sql.tx/add-fk-sql :trino
+(defmethod sql.tx/add-fk-sql :starburst
   [_ _ _ _]
   nil)
 
 ;; FIXME Presto actually has very good timezone support
-#_(defmethod tx/has-questionable-timezone-support? :trino [_] true)
+#_(defmethod tx/has-questionable-timezone-support? :starburst [_] true)

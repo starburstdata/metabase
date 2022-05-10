@@ -1,9 +1,9 @@
 (ns metabase.driver.implementation.execute
-  "Execute implementation for Trino JDBC driver."
+  "Execute implementation for Starburst driver."
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
             [java-time :as t]
-            [metabase.driver.implementation.sync :refer [trino-type->base-type]]
+            [metabase.driver.implementation.sync :refer [starburst-type->base-type]]
             [metabase.driver.sql-jdbc.execute :as sql-jdbc.execute]
             [metabase.driver.sql.parameters.substitution :as sql.params.substitution]
             [metabase.query-processor.timezone :as qp.timezone]
@@ -28,11 +28,11 @@
   (-> (.. rs getStatement getConnection)
       pooled-conn->trino-conn))
 
-(defmethod sql-jdbc.execute/connection-with-timezone :trino
+(defmethod sql-jdbc.execute/connection-with-timezone :starburst
   [driver database ^String timezone-id]
   ;; Trino supports setting the session timezone via a `TrinoConnection` instance method. Under the covers,
   ;; https://github.com/trinodb/trino/blob/master/client/trino-jdbc/src/main/java/io/trino/jdbc/TrinoConnection.java#L596
-  ;; this is equivalent to the `X-Trino-Time-Zone` header in the HTTP request (i.e. the `:trino` driver)
+  ;; this is equivalent to the `X-Trino-Time-Zone` header in the HTTP request (i.e. the `:starburst` driver)
   (let [conn            (.getConnection (sql-jdbc.execute/datasource-with-diagnostic-info! driver database))
         underlying-conn (pooled-conn->trino-conn conn)]
     (try
@@ -54,7 +54,7 @@
 ;;; |                                          Reading Columns from Result Set                                       |
 ;;; +----------------------------------------------------------------------------------------------------------------+
 
-(defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIMESTAMP]
+(defmethod sql-jdbc.execute/read-column-thunk [:starburst Types/TIMESTAMP]
   [_ ^ResultSet rset _ ^Integer i]
   ;; "Attempts to convert Timestamp to OffsetDateTime with UTC if possible.
   (let [zone     (.getTimeZoneId (rs->trino-conn rset))]
@@ -86,11 +86,11 @@
         ^Long millis  (mod (.getTime sql-time) 1000)]
     (.with lt ChronoField/MILLI_OF_SECOND millis)))
 
-(defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIME]
+(defmethod sql-jdbc.execute/read-column-thunk [:starburst Types/TIME]
   [_ ^ResultSet rs ^ResultSetMetaData rs-meta ^Integer i]
   ;; When reading Time column, if base type is 'time with time zone', shift to UTC. Otherwise, just return local time.
   (let [type-name  (.getColumnTypeName rs-meta i)
-        base-type  (trino-type->base-type type-name)
+        base-type  (starburst-type->base-type type-name)
         with-tz?   (isa? base-type :type/TimeWithTZ)]
     (fn []
       (let [local-time (-> (.getTime rs i)
@@ -106,7 +106,7 @@
           ;; else the base-type is time without time zone, so just return the local-time value
           local-time)))))
 
-(defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIMESTAMP_WITH_TIMEZONE]
+(defmethod sql-jdbc.execute/read-column-thunk [:starburst Types/TIMESTAMP_WITH_TIMEZONE]
   [_ ^ResultSet rset _ ^long i]
   ;; Converts TIMESTAMP_WITH_TIMEZONE to instant, then to OffsetDateTime with default time zone. TODO: Switch to UTC.
   (fn []
@@ -114,7 +114,7 @@
           instant (.toInstant t)]
       (.atOffset instant (t/zone-offset)))))
 
-(defmethod sql-jdbc.execute/read-column-thunk [:trino Types/TIME_WITH_TIMEZONE]
+(defmethod sql-jdbc.execute/read-column-thunk [:starburst Types/TIME_WITH_TIMEZONE]
   [_ rs _ i]
   ;; Converts TIME_WITH_TIMEZONE to local time, then to OffsetTime ti time zone UTC. TODO: Maybe this is broken?
   (fn []
@@ -128,9 +128,9 @@
 ;;; |                                          SQL Statment Operations                                               |
 ;;; +----------------------------------------------------------------------------------------------------------------+
 
-(defmethod sql-jdbc.execute/prepared-statement :trino
+(defmethod sql-jdbc.execute/prepared-statement :starburst
   [driver ^Connection conn ^String sql params]
-  ;; with Trino JDBC driver, result set holdability must be HOLD_CURSORS_OVER_COMMIT
+  ;; with Starburst driver, result set holdability must be HOLD_CURSORS_OVER_COMMIT
   ;; defining this method simply to omit setting the holdability
   (let [stmt (.prepareStatement conn
                                 sql
@@ -148,7 +148,7 @@
         (throw e)))))
 
 
-(defmethod sql-jdbc.execute/statement :trino
+(defmethod sql-jdbc.execute/statement :starburst
   [_ ^Connection conn]
   ;; and similarly for statement (do not set holdability)
   (let [stmt (.createStatement conn
@@ -167,24 +167,24 @@
 (defn- date-time->substitution [ts-str]
   (sql.params.substitution/make-stmt-subs "from_iso8601_timestamp(?)" [ts-str]))
 
-(defmethod sql.params.substitution/->prepared-substitution [:trino ZonedDateTime]
+(defmethod sql.params.substitution/->prepared-substitution [:starburst ZonedDateTime]
   [_ ^ZonedDateTime t]
   ;; for native query parameter substitution, in order to not conflict with the `TrinoConnection` session time zone
   ;; (which was set via report time zone), it is necessary to use the `from_iso8601_timestamp` function on the string
   ;; representation of the `ZonedDateTime` instance, but converted to the report time zone
   ;_(date-time->substitution (.format (t/offset-date-time (t/local-date-time t) (t/zone-offset 0)) DateTimeFormatter/ISO_OFFSET_DATE_TIME))
-  (let [report-zone       (qp.timezone/report-timezone-id-if-supported :trino)
+  (let [report-zone       (qp.timezone/report-timezone-id-if-supported :starburst)
         ^ZonedDateTime ts (if (str/blank? report-zone) t (t/with-zone-same-instant t (t/zone-id report-zone)))]
     ;; the `from_iso8601_timestamp` only accepts timestamps with an offset (not a zone ID), so only format with offset
     (date-time->substitution (.format ts DateTimeFormatter/ISO_OFFSET_DATE_TIME))))
 
-(defmethod sql.params.substitution/->prepared-substitution [:trino LocalDateTime]
+(defmethod sql.params.substitution/->prepared-substitution [:starburst LocalDateTime]
   [_ ^LocalDateTime t]
   ;; similar to above implementation, but for `LocalDateTime`
   ;; when Trino parses this, it will account for session (report) time zone
   (date-time->substitution (.format t DateTimeFormatter/ISO_LOCAL_DATE_TIME)))
 
-(defmethod sql.params.substitution/->prepared-substitution [:trino OffsetDateTime]
+(defmethod sql.params.substitution/->prepared-substitution [:starburst OffsetDateTime]
   [_ ^OffsetDateTime t]
   ;; similar to above implementation, but for `ZonedDateTime`
   ;; when Trino parses this, it will account for session (report) time zone
@@ -205,7 +205,7 @@
   (let [millis-of-day (.get t ChronoField/MILLI_OF_DAY)]
     (.setTime ps i (Time. millis-of-day))))
 
-(defmethod sql-jdbc.execute/set-parameter [:trino OffsetTime]
+(defmethod sql-jdbc.execute/set-parameter [:starburst OffsetTime]
   [_ ^PreparedStatement ps ^Integer i t]
   ;; Convert OffsetTime to UTC, then set time param
   ;; necessary because `TrinoPreparedStatement` does not implement the `setTime` overload having the final `Calendar`
@@ -213,7 +213,7 @@
   (let [adjusted-tz (t/with-offset-same-instant t (t/zone-offset 0))]
     (set-time-param ps i adjusted-tz)))
 
-(defmethod sql-jdbc.execute/set-parameter [:trino LocalTime]
+(defmethod sql-jdbc.execute/set-parameter [:starburst LocalTime]
   [_ ^PreparedStatement ps ^Integer i t]
   ;; same rationale as above
   (set-time-param ps i t))

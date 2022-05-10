@@ -1,5 +1,5 @@
 (ns metabase.driver.implementation.connectivity
-  "Connectivity implementation for Trino JDBC driver."
+  "Connectivity implementation for Starburst driver."
   (:require [clojure.set :as set]
             [clojure.string :as str]
             [metabase.db.spec :as mdb.spec]
@@ -57,7 +57,7 @@
     (apply dissoc (cons det (keys kerb-props->url-param-names)))))
 
 (defn- jdbc-spec
-  "Creates a spec for `clojure.java.jdbc` to use for connecting to Trino via JDBC, from the given `opts`."
+  "Creates a spec for `clojure.java.jdbc` to use for connecting to Starburst via JDBC, from the given `opts`."
   [{:keys [host port catalog schema]
     :or   {host "localhost", port 5432, catalog ""}
     :as   details}]
@@ -79,7 +79,7 @@
     (str v)
     v))
 
-(defmethod sql-jdbc.conn/connection-details->spec :trino
+(defmethod sql-jdbc.conn/connection-details->spec :starburst
   [_ details-map]
   (let [props (-> details-map
                   (update :port (fn [port]

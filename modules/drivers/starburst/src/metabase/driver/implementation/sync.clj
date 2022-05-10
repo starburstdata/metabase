@@ -1,5 +1,5 @@
 (ns metabase.driver.implementation.sync
-  "Sync implementation for Trino JDBC driver."
+  "Sync implementation for Starburst driver."
   (:require [clojure.java.jdbc :as jdbc]
             [clojure.set :as set]
             [clojure.string :as str]
@@ -12,8 +12,8 @@
             [metabase.driver.sql.util :as sql.u]
             [metabase.util.i18n :refer [trs]]))
 
-(def trino-type->base-type
-  "Function that returns a `base-type` for the given `trino-type` (can be a keyword or string)."
+(def starburst-type->base-type
+  "Function that returns a `base-type` for the given `straburst-type` (can be a keyword or string)."
   (sql-jdbc.sync/pattern-based-database-type->base-type
    [[#"(?i)boolean"                    :type/Boolean]
     [#"(?i)tinyint"                    :type/Integer]
@@ -65,9 +65,9 @@
   "The set of schemas that should be excluded when querying all schemas."
   #{"information_schema"})
 
-(defmethod sql-jdbc.sync/database-type->base-type :trino
+(defmethod sql-jdbc.sync/database-type->base-type :starburst
   [_ field-type]
-  (let [base-type (trino-type->base-type field-type)]
+  (let [base-type (starburst-type->base-type field-type)]
     (println (format "%s -> %s" field-type base-type))
     base-type))
 
@@ -108,7 +108,7 @@
                    (describe-schema driver conn catalog schema))))
           (jdbc/reducible-query {:connection conn} sql))))
 
-(defmethod driver/describe-database :trino
+(defmethod driver/describe-database :starburst
   [driver {{:keys [catalog schema] :as details} :details :as database}]
   (with-open [conn (-> (sql-jdbc.conn/db->pooled-connection-spec database)
                        jdbc/get-connection)]
@@ -116,7 +116,7 @@
                       (all-schemas driver conn catalog))]
       {:tables (reduce set/union schemas)})))
 
-(defmethod driver/describe-table :trino
+(defmethod driver/describe-table :starburst
   [driver {{:keys [catalog] :as details} :details :as database} {schema :schema, table-name :name}]
   (with-open [conn (-> (sql-jdbc.conn/db->pooled-connection-spec database)
                        jdbc/get-connection)]
@@ -129,11 +129,11 @@
                 (map-indexed (fn [idx {:keys [column type] :as col}]
                                {:name column
                                 :database-type type
-                                :base-type         (trino-type->base-type type)
+                                :base-type         (starburst-type->base-type type)
                                 :database-position idx}))
                 (jdbc/reducible-query {:connection conn} sql))})))
 
-(defmethod sql-jdbc.sync/db-default-timezone :trino
+(defmethod sql-jdbc.sync/db-default-timezone :starburst
   [_ spec]   
   (let [[{:keys [time-zone]}] (jdbc/query spec "SELECT current_timezone() as \"time-zone\"")]
     time-zone))

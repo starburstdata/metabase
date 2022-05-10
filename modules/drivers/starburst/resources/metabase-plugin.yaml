@@ -1,10 +1,10 @@
 info:
-  name: Metabase Trino Driver
-  version: 1.0.0-trino-jdbc-375
-  description: Allows Metabase to connect to Trino databases. Community Supported driver.
+  name: Metabase Starburst Driver
+  version: 1.0.0-starburst-jdbc-380
+  description: Allows Metabase to connect to Starburst Enterprise, Starburst Galaxy, and Trino databases.
 driver:
-  name: trino
-  display-name: Trino
+  name: starburst
+  display-name: Starburst Enterprise
   lazy-load: true
   parent: sql-jdbc
   connection-properties:
@@ -34,6 +34,6 @@ driver:
 
 init:
   - step: load-namespace
-    namespace: metabase.driver.trino
+    namespace: metabase.driver.starburst
   - step: register-jdbc-driver
     class: io.trino.jdbc.TrinoDriver

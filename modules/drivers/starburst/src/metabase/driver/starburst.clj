@@ -1,11 +1,11 @@
-(ns metabase.driver.trino
-  "Trino JDBC driver."
+(ns metabase.driver.starburst
+  "Starburst driver."
   (:require [metabase.driver :as driver]
                         [metabase.driver.sql-jdbc.execute.legacy-impl :as sql-jdbc.legacy]))
 
-(driver/register! :trino, :parent #{::sql-jdbc.legacy/use-legacy-classes-for-read-and-set})
-
-(prefer-method driver/supports? [:trino :set-timezone] [:sql-jdbc :set-timezone])
+(driver/register! :starburst, :parent #{::sql-jdbc.legacy/use-legacy-classes-for-read-and-set})
+ 
+(prefer-method driver/supports? [:starburst :set-timezone] [:sql-jdbc :set-timezone])
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
 ;;; |                                                  Load implemetation files                                      |

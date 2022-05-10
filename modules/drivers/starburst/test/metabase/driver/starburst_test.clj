@@ -1,4 +1,4 @@
-(ns metabase.driver.trino-test
+(ns metabase.driver.starburst-test
   (:require [clojure.java.jdbc :as jdbc]
             [clojure.string :as str]
             [clojure.test :refer :all]
@@ -7,7 +7,7 @@
             [metabase.api.database :as api.database]
             [metabase.db.metadata-queries :as metadata-queries]
             [metabase.driver :as driver]
-            [metabase.driver.implementation.connectivity :as trino-connectivity]
+            [metabase.driver.implementation.connectivity :as starburst-connectivity]
             [metabase.driver.sql-jdbc.connection :as sql-jdbc.conn]
             [metabase.driver.sql.query-processor :as sql.qp]
             [metabase.models.database :refer [Database]]
@@ -22,12 +22,12 @@
 (use-fixtures :once (fixtures/initialize :db))
 
 (deftest describe-database-test
-  (mt/test-driver :trino
+  (mt/test-driver :starburst
                   (is (= {:tables #{{:name "categories" :schema "default"}
                                     {:name "venues" :schema "default"}
                                     {:name "checkins" :schema "default"}
                                     {:name "users" :schema "default"}}}
-                         (-> (driver/describe-database :trino (mt/db))
+                         (-> (driver/describe-database :starburst (mt/db))
                              (update :tables (comp set (partial filter (comp #{"categories"
                                                                                "venues"
                                                                                "checkins"
@@ -35,7 +35,7 @@
                                                                              :name)))))))))
 
 (deftest describe-table-test
-  (mt/test-driver :trino
+  (mt/test-driver :starburst
                   (is (= {:name   "venues"
                           :schema "default"
                           :fields #{{:name          "name",
@@ -64,10 +64,10 @@
                                      :database-type "integer"
                                      :base-type     :type/Integer
                                      :database-position 0}}}
-                         (driver/describe-table :trino (mt/db) (db/select-one 'Table :id (mt/id :venues)))))))
+                         (driver/describe-table :starburst (mt/db) (db/select-one 'Table :id (mt/id :venues)))))))
 
 (deftest table-rows-sample-test
-  (mt/test-driver :trino
+  (mt/test-driver :starburst
                   (is (= [[1 "Red Medicine"]
                           [2 "Stout Burgers & Beers"]
                           [3 "The Apple Pan"]
@@ -91,7 +91,7 @@
                       :order-by [[:default.categories.id :asc]]}]
             :where  [:> :__rownum__ 5]
             :limit  5}
-           (sql.qp/apply-top-level-clause :trino :page
+           (sql.qp/apply-top-level-clause :starburst :page
                                           {:select   [[:default.categories.name "name"] [:default.categories.id "id"]]
                                            :from     [:default.categories]
                                            :order-by [[:default.categories.id :asc]]}
@@ -99,13 +99,13 @@
                                                   :items 5}})))))
 
 (deftest db-timezone-id-test
-  (mt/test-driver :trino
+  (mt/test-driver :starburst
                     (testing "If global timezone is 'SYSTEM', should use system timezone"
                       (is (= "UTC"
                              (driver/db-default-timezone driver/*driver* (mt/db)))))))
 
 (deftest template-tag-timezone-test
-  (mt/test-driver :trino
+  (mt/test-driver :starburst
                   (testing "Make sure date params work correctly when report timezones are set (#10487)"
                     (mt/with-temporary-setting-values [report-timezone "Asia/Hong_Kong"]
         ;; the `read-column-thunk` for `Types/TIMESTAMP` always returns an `OffsetDateTime`, not a `LocalDateTime`, as
@@ -127,7 +127,7 @@
                                                 :value  "2014-08-02"}]}))))))))
 
 (deftest splice-strings-test
-  (mt/test-driver :trino
+  (mt/test-driver :starburst
                   (let [query (mt/mbql-query venues
                                              {:aggregation [[:count]]
                                               :filter      [:= $name "wow"]})]
@@ -145,27 +145,27 @@
                             ["my_catalog" nil "my_catalog"]
                             ["my_catalog" "" "my_catalog"]
                             ["my_catalog" "my_schema" "my_catalog/my_schema"]]]
-      (is (= expected (#'trino-connectivity/db-name c s)))))
+      (is (= expected (#'starburst-connectivity/db-name c s)))))
   (testing "jdbc-spec is correct"
     (is (= {:classname   "io.trino.jdbc.TrinoDriver"
             :subname     "//my-starburst-server:1234/my_catalog?Option1=Value1&Option2=Value2"
             :subprotocol "trino"}
-           (#'trino-connectivity/jdbc-spec {:host "my-starburst-server"
+           (#'starburst-connectivity/jdbc-spec {:host "my-starburst-server"
                                :port 1234
                                :catalog "my_catalog"
                                :schema nil
                                :additional-options "Option1=Value1&Option2=Value2"})))))
 
 (defn- execute-ddl! [ddl-statements]
-  (mt/with-driver :trino
-    (let [jdbc-spec (sql-jdbc.conn/connection-details->spec :trino (:details (mt/db)))]
+  (mt/with-driver :starburst
+    (let [jdbc-spec (sql-jdbc.conn/connection-details->spec :starburst (:details (mt/db)))]
       (with-open [conn (jdbc/get-connection jdbc-spec)]
         (doseq [ddl-stmt ddl-statements]
           (with-open [stmt (.prepareStatement conn ddl-stmt)]
             (.executeUpdate stmt)))))))
 
 (deftest specific-schema-sync-test
-  (mt/test-driver :trino
+  (mt/test-driver :starburst
                   (testing "When a specific schema is designated, only that one is synced"
                     (let [s           "specific_schema"
                           t           "specific_table"
@@ -175,7 +175,7 @@
                                      (format "DROP SCHEMA IF EXISTS %s" s)
                                      (format "CREATE SCHEMA %s" s)
                                      (format "CREATE TABLE %s.%s (pk INTEGER, val1 VARCHAR(512))" s t)])
-                      (mt/with-temp Database [db {:engine :trino, :name "Temp Trino JDBC Schema DB", :details with-schema}]
+                      (mt/with-temp Database [db {:engine :starburst, :name "Temp Trino JDBC Schema DB", :details with-schema}]
                         (mt/with-db db
             ;; same as test_data, but with schema, so should NOT pick up venues, users, etc.
                           (sync/sync-database! db)
@@ -185,13 +185,13 @@
                                      (format "DROP SCHEMA %s" s)])))))
 
 (deftest test-database-connection-test
-  (mt/test-driver :trino
+  (mt/test-driver :starburst
                   (testing "can-test-database-connection works properly"
       ;; for whatever reason, :let-user-control-scheduling is the only "always available" option that goes into details
       ;; the others (ex: :auto_run_queries and :refingerprint) are one level up (fields in the model, not in the details
       ;; JSON blob)
                     (let [db-details (assoc (:details (mt/db)) :let-user-control-scheduling false)]
-                      (is (nil? (api.database/test-database-connection :trino db-details)))))))
+                      (is (nil? (api.database/test-database-connection :starburst db-details)))))))
 
 (deftest kerberos-properties-test
   (testing "Kerberos related properties are set correctly"
@@ -205,7 +205,7 @@
                    :kerberos-remote-service-name "HTTP"
                    :kerberos-keytab-path         "/path/to/client.keytab"
                    :kerberos-delegation          true}
-          jdbc-spec (sql-jdbc.conn/connection-details->spec :trino details)]
+          jdbc-spec (sql-jdbc.conn/connection-details->spec :starburst details)]
       (is (= (str "//starburst-server:7778/my-catalog?KerberosPrincipal=alice@DOMAIN.COM"
                   "&KerberosRemoteServiceName=HTTP&KerberosKeytabPath=/path/to/client.keytab"
                   "&KerberosConfigPath=/path/to/krb5.conf&KerberosDelegation=true")
