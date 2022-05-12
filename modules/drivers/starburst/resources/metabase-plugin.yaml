@@ -4,7 +4,7 @@ info:
   description: Allows Metabase to connect to Starburst Enterprise, Starburst Galaxy, and Trino databases.
 driver:
   name: starburst
-  display-name: Starburst Enterprise
+  display-name: Starburst
   lazy-load: true
   parent: sql-jdbc
   connection-properties:
