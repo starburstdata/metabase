@@ -22,7 +22,6 @@
   </Appenders>
 
   <Loggers>
-<<<<<<< HEAD
     <Logger name="metabase" level="INFO"/>
     <Logger name="metabase-enterprise" level="INFO"/>
     <Logger name="metabase.plugins" level="DEBUG"/>
@@ -31,17 +30,8 @@
     <Logger name="com.mchange" level="ERROR"/>
     <Logger name="org.quartz" level="INFO"/>
     <Logger name="liquibase" level="ERROR"/>
-=======
-    <Logger name="metabase" level="WARN"/>
-    <Logger name="metabase-enterprise" level="WARN"/>
-    <Logger name="metabase.plugins" level="INFO"/>
-    <Logger name="metabase.server.middleware" level="WARN"/>
-    <Logger name="metabase.query-processor.async" level="WARN"/>
-    <Logger name="com.mchange" level="WARN"/>
-    <Logger name="liquibase" level="WARN"/>
->>>>>>> 76e0252f01 (Add Trino Driver)
 
-    <Root level="WARN">pwd
+    <Root level="WARN">
       <AppenderRef ref="STDOUT"/>
     </Root>
   </Loggers>

@@ -68,7 +68,7 @@
 (defmethod sql-jdbc.sync/database-type->base-type :starburst
   [_ field-type]
   (let [base-type (starburst-type->base-type field-type)]
-    (println (format "%s -> %s" field-type base-type))
+    (log/debugf "database-type->base-type %s -> %s" field-type base-type)
     base-type))
 
 (defn- have-select-privilege?
