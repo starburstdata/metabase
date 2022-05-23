@@ -210,3 +210,4 @@
                   "&KerberosRemoteServiceName=HTTP&KerberosKeytabPath=/path/to/client.keytab"
                   "&KerberosConfigPath=/path/to/krb5.conf&KerberosDelegation=true")
              (:subname jdbc-spec))))))
+
